@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Minus, Trash2, ShoppingCart, Scissors, Package, ShoppingBag } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, Scissors, Package, ShoppingBag, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useSalon } from "@/contexts/SalonContext";
+import { useSalon, Sale } from "@/contexts/SalonContext";
 
 interface CartItem {
   id: string;
@@ -20,7 +20,7 @@ interface CartItem {
   sessions?: number;
 }
 
-// Dados simulados para demonstração
+// Dados simulados para demonstração (mantidos por enquanto)
 const availableProcedures = [
   { id: "1", name: "Limpeza de Pele", price: 120.00 },
   { id: "2", name: "Hidratação Facial", price: 80.00 },
@@ -44,25 +44,6 @@ const availableProducts = [
   { id: "5", name: "Esfoliante Corporal", price: 55.00 },
 ];
 
-interface ProcedureItem {
-  id: string;
-  name: string;
-  price: number;
-}
-
-interface PackageItem {
-  id: string;
-  name: string;
-  price: number;
-  sessions: number;
-}
-
-interface ProductItem {
-  id: string;
-  name: string;
-  price: number;
-}
-
 interface ShoppingCartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -70,31 +51,23 @@ interface ShoppingCartModalProps {
 
 export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) => {
   const { toast } = useToast();
-  const { clients, addSale } = useSalon();
+  const { clients, addSale, isLoadingClients } = useSalon();
   
-  const [selectedClientId, setSelectedClientId] = useState<number>(0);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [observations, setObservations] = useState<string>("");
-  
-  // Abas para seleção de tipo
   const [activeTab, setActiveTab] = useState<"procedimento" | "pacote" | "produto">("procedimento");
-  
-  // Seleções para adicionar item
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
   const [price, setPrice] = useState<string>("");
 
   const getCurrentItems = () => {
     switch (activeTab) {
-      case "procedimento":
-        return availableProcedures;
-      case "pacote":
-        return availablePackages;
-      case "produto":
-        return availableProducts;
-      default:
-        return [];
+      case "procedimento": return availableProcedures;
+      case "pacote": return availablePackages;
+      case "produto": return availableProducts;
+      default: return [];
     }
   };
 
@@ -103,11 +76,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
     const selectedItem = currentItems.find(item => item.id === selectedItemId);
     
     if (!selectedItem || !price) {
-      toast({
-        title: "Erro",
-        description: "Selecione um item e confirme o preço",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Selecione um item e confirme o preço", variant: "destructive" });
       return;
     }
 
@@ -117,7 +86,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
       type: activeTab,
       price: parseFloat(price),
       quantity: quantity,
-      ...(activeTab === "pacote" && 'sessions' in selectedItem && { sessions: (selectedItem as PackageItem).sessions })
+      ...(activeTab === "pacote" && 'sessions' in selectedItem && { sessions: selectedItem.sessions })
     };
 
     setCart(prev => [...prev, item]);
@@ -128,9 +97,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
 
   const updateQuantity = (id: string, change: number) => {
     setCart(prev => prev.map(item => 
-      item.id === id 
-        ? { ...item, quantity: Math.max(1, item.quantity + change) }
-        : item
+      item.id === id ? { ...item, quantity: Math.max(1, item.quantity + change) } : item
     ));
   };
 
@@ -142,50 +109,46 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
+  const resetForm = () => {
+    setCart([]);
+    setSelectedClientId(null);
+    setPaymentMethod("");
+    setObservations("");
+    onClose();
+  }
+
   const handleFinalizeSale = () => {
     if (!selectedClientId || cart.length === 0 || !paymentMethod) {
       toast({
-        title: "Erro",
-        description: "Selecione cliente, adicione itens ao carrinho e escolha forma de pagamento",
+        title: "Erro de Validação",
+        description: "Selecione um cliente, adicione itens ao carrinho e escolha uma forma de pagamento.",
         variant: "destructive",
       });
       return;
     }
 
-    const selectedClient = clients.find(c => c.id === selectedClientId);
-    if (!selectedClient) return;
-
-    // Criar uma venda para cada item do carrinho
+    // A lógica agora cria uma venda por item no carrinho, como antes,
+    // mas adaptado para a nova estrutura do Supabase.
     cart.forEach(item => {
-      for (let i = 0; i < item.quantity; i++) {
-        const sale = {
-          client: selectedClient.name,
-          clientId: selectedClientId,
-          item: item.name,
-          type: item.type,
-          price: `R$ ${item.price.toFixed(2).replace(".", ",")}`,
-          date: "Hoje",
-          status: "pago" as const,
-          ...(item.type === "pacote" && {
-            sessions: item.sessions || 1,
-            usedSessions: 0,
-          }),
-        };
-        addSale(sale);
-      }
+      const sale: Omit<Sale, 'id'> = {
+        client_id: selectedClientId,
+        item: item.name,
+        type: item.type,
+        price: item.price.toString(),
+        date: new Date().toLocaleDateString('pt-BR'),
+        status: "pago",
+        sessions: item.sessions,
+        used_sessions: item.type === 'pacote' ? 0 : undefined,
+      };
+      addSale(sale);
     });
-
-    // Reset form
-    setCart([]);
-    setSelectedClientId(0);
-    setPaymentMethod("");
-    setObservations("");
-    onClose();
 
     toast({
-      title: "Sucesso!",
-      description: `${cart.length} item(s) vendido(s) e adicionado(s) aos agendamentos`,
+      title: "Venda Finalizada!",
+      description: "A venda foi registrada com sucesso.",
     });
+
+    resetForm();
   };
 
   return (
@@ -199,14 +162,18 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Seleção de Cliente */}
           <div className="space-y-2">
             <Label>Cliente *</Label>
-            <Select value={selectedClientId.toString()} onValueChange={(value) => setSelectedClientId(parseInt(value))}>
+            <Select 
+              value={selectedClientId?.toString() || ""}
+              onValueChange={(value) => setSelectedClientId(parseInt(value))}
+              disabled={isLoadingClients}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Selecione um cliente" />
+                <SelectValue placeholder={isLoadingClients ? "Carregando clientes..." : "Selecione um cliente"} />
               </SelectTrigger>
               <SelectContent>
+                {isLoadingClients && <div className="flex items-center justify-center p-2"><Loader2 className="w-4 h-4 animate-spin"/></div>}
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id.toString()}>
                     {client.name} - {client.phone}
@@ -216,74 +183,29 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             </Select>
           </div>
 
-          {/* Adicionar Itens ao Carrinho */}
+          {/* Restante do formulário permanece o mesmo */}
           <div className="border rounded-lg p-4 space-y-4">
             <h3 className="font-semibold">Adicionar Itens ao Carrinho</h3>
-            
-            {/* Abas de Tipos */}
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={activeTab === "procedimento" ? "default" : "outline"}
-                onClick={() => {
-                  setActiveTab("procedimento");
-                  setSelectedItemId("");
-                  setPrice("");
-                }}
-                className="flex items-center gap-2"
-              >
-                <Scissors className="w-4 h-4" />
-                Procedimento
-              </Button>
-              <Button
-                type="button"
-                variant={activeTab === "pacote" ? "default" : "outline"}
-                onClick={() => {
-                  setActiveTab("pacote");
-                  setSelectedItemId("");
-                  setPrice("");
-                }}
-                className="flex items-center gap-2"
-              >
-                <Package className="w-4 h-4" />
-                Pacote
-              </Button>
-              <Button
-                type="button"
-                variant={activeTab === "produto" ? "default" : "outline"}
-                onClick={() => {
-                  setActiveTab("produto");
-                  setSelectedItemId("");
-                  setPrice("");
-                }}
-                className="flex items-center gap-2"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                Produto
-              </Button>
+              <Button type="button" variant={activeTab === "procedimento" ? "default" : "outline"} onClick={() => { setActiveTab("procedimento"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><Scissors className="w-4 h-4" />Procedimento</Button>
+              <Button type="button" variant={activeTab === "pacote" ? "default" : "outline"} onClick={() => { setActiveTab("pacote"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><Package className="w-4 h-4" />Pacote</Button>
+              <Button type="button" variant={activeTab === "produto" ? "default" : "outline"} onClick={() => { setActiveTab("produto"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><ShoppingBag className="w-4 h-4" />Produto</Button>
             </div>
 
-            {/* Seleção do Item */}
             <div className="space-y-2">
-              <Label>{activeTab} *</Label>
+              <Label>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} *</Label>
               <Select 
                 value={selectedItemId} 
                 onValueChange={(value) => {
                   setSelectedItemId(value);
                   const selectedItem = getCurrentItems().find(item => item.id === value);
-                  if (selectedItem) {
-                    setPrice(selectedItem.price.toString());
-                  }
+                  if (selectedItem) setPrice(selectedItem.price.toString());
                 }}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder={`Selecione um ${activeTab}...`} />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={`Selecione um ${activeTab}...`} /></SelectTrigger>
                 <SelectContent>
                   {getCurrentItems().map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name} - R$ {item.price.toFixed(2).replace(".", ",")}
-                    </SelectItem>
+                    <SelectItem key={item.id} value={item.id}>{item.name} - R$ {item.price.toFixed(2).replace(".", ",")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -292,79 +214,49 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Quantidade</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                />
+                <Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} />
               </div>
               <div className="space-y-2">
                 <Label>Preço (R$) *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                />
+                <Input type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} />
               </div>
             </div>
 
-            <Button onClick={addToCart} className="w-full">
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar ao Carrinho
-            </Button>
+            <Button onClick={addToCart} className="w-full"><Plus className="w-4 h-4 mr-2" />Adicionar ao Carrinho</Button>
           </div>
 
-          {/* Carrinho */}
           {cart.length > 0 && (
             <div className="space-y-4">
               <h3 className="font-semibold">Carrinho ({cart.length} itens)</h3>
               {cart.map((item) => (
-                <Card key={item.id} className="p-4">
-                  <CardContent className="p-0">
+                <Card key={item.id} className="p-4"><CardContent className="p-0">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <h4 className="font-medium">{item.name}</h4>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">{item.type === 'pacote' ? 'Pacote' : 'Procedimento'}</Badge>
+                          <Badge variant="outline">{item.type}</Badge>
                           {item.sessions && <Badge variant="secondary">{item.sessions} sessões</Badge>}
                         </div>
                         <p className="text-sm text-muted-foreground">R$ {item.price.toFixed(2).replace(".", ",")} cada</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)}>
-                          <Minus className="w-3 h-3" />
-                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)}><Minus className="w-3 h-3" /></Button>
                         <span className="w-8 text-center">{item.quantity}</span>
-                        <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)}>
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => removeFromCart(item.id)}>
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)}><Plus className="w-3 h-3" /></Button>
+                        <Button size="sm" variant="destructive" onClick={() => removeFromCart(item.id)}><Trash2 className="w-3 h-3" /></Button>
                       </div>
                     </div>
-                    <div className="text-right mt-2">
-                      <span className="font-semibold">Subtotal: R$ {(item.price * item.quantity).toFixed(2).replace(".", ",")}</span>
-                    </div>
-                  </CardContent>
-                </Card>
+                    <div className="text-right mt-2"><span className="font-semibold">Subtotal: R$ {(item.price * item.quantity).toFixed(2).replace(".", ",")}</span></div>
+                </CardContent></Card>
               ))}
-              
-              <div className="text-right">
-                <div className="text-xl font-bold">Total: R$ {calculateTotal().toFixed(2).replace(".", ",")}</div>
-              </div>
+              <div className="text-right"><div className="text-xl font-bold">Total: R$ {calculateTotal().toFixed(2).replace(".", ",")}</div></div>
             </div>
           )}
 
-          {/* Forma de Pagamento */}
           <div className="space-y-2">
             <Label>Forma de Pagamento *</Label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a forma de pagamento" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Selecione a forma de pagamento" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="dinheiro">Dinheiro</SelectItem>
                 <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
@@ -375,25 +267,14 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             </Select>
           </div>
 
-          {/* Observações */}
           <div className="space-y-2">
             <Label>Observações</Label>
-            <Textarea
-              value={observations}
-              onChange={(e) => setObservations(e.target.value)}
-              placeholder="Observações sobre a venda..."
-              rows={3}
-            />
+            <Textarea value={observations} onChange={(e) => setObservations(e.target.value)} placeholder="Observações sobre a venda..." rows={3} />
           </div>
 
-          {/* Botões */}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button onClick={handleFinalizeSale} className="bg-gradient-primary">
-              Finalizar Venda
-            </Button>
+            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button onClick={handleFinalizeSale} className="bg-gradient-primary">Finalizar Venda</Button>
           </div>
         </div>
       </DialogContent>

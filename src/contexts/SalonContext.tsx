@@ -1,26 +1,29 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '../lib/supabaseClient';
 
+// Interfaces (mantidas como no original para compatibilidade)
 export interface Client {
   id: number;
   name: string;
   phone: string;
   email: string;
-  lastVisit: string;
-  totalSpent: string;
-  packages: number;
+  lastVisit?: string;
+  totalSpent?: string;
+  packages?: number;
 }
 
 export interface Sale {
   id: number;
-  client: string;
-  clientId: number;
+  client?: string; // Mantido para exibição, mas o ID é a fonte da verdade
+  client_id: number;
   item: string;
   type: 'procedimento' | 'pacote' | 'produto';
   price: string;
   date: string;
   status: 'pago' | 'pendente';
-  sessions?: number; // Para pacotes
-  usedSessions?: number; // Para pacotes
+  sessions?: number;
+  used_sessions?: number;
 }
 
 export interface PendingAppointment {
@@ -32,8 +35,8 @@ export interface PendingAppointment {
   type: 'procedimento' | 'pacote' | 'produto';
   price: string;
   status: 'aguardando' | 'agendado' | 'concluido';
-  sessions?: number; // Para pacotes
-  usedSessions?: number; // Para pacotes
+  sessions?: number;
+  usedSessions?: number;
 }
 
 export interface Appointment {
@@ -61,357 +64,135 @@ interface SalonContextType {
   addAppointment: (appointment: Omit<Appointment, 'id'>) => void;
   scheduleFromPending: (pendingId: number, time: string, date: string) => void;
   updatePackageSession: (packageId: number) => void;
+  isLoadingClients: boolean;
+  isLoadingSales: boolean;
 }
 
 const SalonContext = createContext<SalonContextType | undefined>(undefined);
 
-// Dados iniciais
-const initialClients: Client[] = [
-  {
-    id: 1,
-    name: "Maria Silva",
-    phone: "(11) 99999-9999",
-    email: "maria@email.com",
-    lastVisit: "15/03/2024",
-    totalSpent: "R$ 1.250,00",
-    packages: 2,
-  },
-  {
-    id: 2,
-    name: "Ana Costa",
-    phone: "(11) 88888-8888",
-    email: "ana@email.com",
-    lastVisit: "12/03/2024",
-    totalSpent: "R$ 890,00",
-    packages: 1,
-  },
-  {
-    id: 3,
-    name: "Carla Santos",
-    phone: "(11) 77777-7777",
-    email: "carla@email.com",
-    lastVisit: "10/03/2024",
-    totalSpent: "R$ 2.100,00",
-    packages: 3,
-  },
-];
+// Funções de API Supabase
+const fetchClients = async (): Promise<Client[]> => {
+  const { data, error } = await supabase.from('clients').select('*');
+  if (error) throw new Error(error.message);
+  return data || [];
+};
 
-const initialSales: Sale[] = [
-  {
-    id: 1,
-    client: "Maria Silva",
-    clientId: 1,
-    item: "Pacote Facial Completo",
-    type: "pacote",
-    price: "R$ 300,00",
-    date: "Hoje",
-    status: "pago",
-    sessions: 5,
-    usedSessions: 1,
-  },
-  {
-    id: 2,
-    client: "Ana Costa",
-    clientId: 2,
-    item: "Pacote Relaxamento",
-    type: "pacote",
-    price: "R$ 450,00",
-    date: "Hoje",
-    status: "pago",
-    sessions: 3,
-    usedSessions: 0,
-  },
-  {
-    id: 3,
-    client: "Carla Santos",
-    clientId: 3,
-    item: "Pacote Corporal",
-    type: "pacote",
-    price: "R$ 600,00",
-    date: "Hoje",
-    status: "pago",
-    sessions: 8,
-    usedSessions: 3,
-  },
-  {
-    id: 4,
-    client: "Maria Silva",
-    clientId: 1,
-    item: "Pacote Anti-idade",
-    type: "pacote",
-    price: "R$ 800,00",
-    date: "Hoje",
-    status: "pago",
-    sessions: 6,
-    usedSessions: 6,
-  },
-  {
-    id: 5,
-    client: "Maria Silva",
-    clientId: 1,
-    item: "Limpeza de Pele",
-    type: "procedimento",
-    price: "R$ 120,00",
-    date: "Hoje",
-    status: "pago",
-  },
-  {
-    id: 6,
-    client: "Ana Costa",
-    clientId: 2,
-    item: "Massagem Relaxante",
-    type: "procedimento",
-    price: "R$ 80,00",
-    date: "Hoje",
-    status: "pago",
-  },
-];
+const fetchSales = async (): Promise<Sale[]> => {
+  const { data, error } = await supabase.from('sales').select('*, clients(name)');
+  if (error) throw new Error(error.message);
+  // Mapear para a estrutura de Sale esperada no frontend
+  return data.map(sale => ({
+    ...sale,
+    price: String(sale.price), // Garantir que o preço seja string
+    client: sale.clients?.name || 'Cliente desconhecido'
+  })) || [];
+};
+
 
 export function SalonProvider({ children }: { children: ReactNode }) {
-  const [clients, setClients] = useState<Client[]>(initialClients);
-  const [sales, setSales] = useState<Sale[]>(() => {
-    const savedSales = localStorage.getItem('sales');
-    return savedSales ? JSON.parse(savedSales) : initialSales;
-  });
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [pendingProcedures, setPendingProcedures] = useState<PendingAppointment[]>(() => {
-    const savedPendingProcedures = localStorage.getItem('pendingProcedures');
-    return savedPendingProcedures ? JSON.parse(savedPendingProcedures) : [
-      {
-        id: 5,
-        saleId: 5,
-        client: "Maria Silva",
-        clientId: 1,
-        service: "Limpeza de Pele",
-        type: "procedimento",
-        price: "R$ 120,00",
-        status: "aguardando",
-      },
-      {
-        id: 6,
-        saleId: 6,
-        client: "Ana Costa",
-        clientId: 2,
-        service: "Massagem Relaxante",
-        type: "procedimento",
-        price: "R$ 80,00",
-        status: "aguardando",
-      },
-    ];
-  });
-  const [activPackages, setActivPackages] = useState<PendingAppointment[]>(() => {
-    const savedActivPackages = localStorage.getItem('activPackages');
-    return savedActivPackages ? JSON.parse(savedActivPackages) : [
-      {
-        id: 1,
-        saleId: 1,
-        client: "Maria Silva",
-        clientId: 1,
-        service: "Pacote Facial Completo",
-        type: "pacote",
-        price: "R$ 300,00",
-        status: "aguardando",
-        sessions: 5,
-        usedSessions: 1,
-      },
-      {
-        id: 2,
-        saleId: 2,
-        client: "Ana Costa",
-        clientId: 2,
-        service: "Pacote Relaxamento",
-        type: "pacote",
-        price: "R$ 450,00",
-        status: "aguardando",
-        sessions: 3,
-        usedSessions: 0,
-      },
-      {
-        id: 3,
-        saleId: 3,
-        client: "Carla Santos",
-        clientId: 3,
-        service: "Pacote Corporal",
-        type: "pacote",
-        price: "R$ 600,00",
-        status: "aguardando",
-        sessions: 8,
-        usedSessions: 3,
-      },
-      {
-        id: 4,
-        saleId: 4,
-        client: "Maria Silva",
-        clientId: 1,
-        service: "Pacote Anti-idade",
-        type: "pacote",
-        price: "R$ 800,00",
-        status: "concluido",
-        sessions: 6,
-        usedSessions: 6,
-      },
-    ];
+  const queryClient = useQueryClient();
+
+  // Queries
+  const { data: clients = [], isLoading: isLoadingClients } = useQuery<Client[]>({
+    queryKey: ['clients'],
+    queryFn: fetchClients,
   });
 
-  useEffect(() => {
+  const { data: sales = [], isLoading: isLoadingSales } = useQuery<Sale[]>({
+    queryKey: ['sales'],
+    queryFn: fetchSales,
+  });
+  
+  // TO-DO: Implementar fetch para appointments
+  const { data: appointments = [] } = useQuery<Appointment[]>({
+    queryKey: ['appointments'],
+    queryFn: async () => [], // Placeholder
+  });
+
+  // Mutações
+  const addClientMutation = useMutation({
+    mutationFn: async (newClient: Omit<Client, 'id'>) => {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert([{
+          name: newClient.name,
+          phone: newClient.phone,
+          email: newClient.email,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
+  const addSaleMutation = useMutation({
+    mutationFn: async (newSale: Omit<Sale, 'id'>) => {
+      // Omitindo 'client' que é apenas para exibição
+      const { client, ...saleData } = newSale;
+      const { data, error } = await supabase.from('sales').insert([saleData]).select();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+    },
+  });
+
+  // Lógica derivada (mantida no cliente)
+  const { pendingProcedures, activPackages } = useMemo(() => {
+    const pending: PendingAppointment[] = [];
+    const packages: PendingAppointment[] = [];
+
+    sales.forEach(sale => {
+      if (sale.type !== 'produto') {
+        const appointment: PendingAppointment = {
+          id: sale.id,
+          saleId: sale.id,
+          client: sale.client || 'N/A',
+          clientId: sale.client_id,
+          service: sale.item,
+          type: sale.type,
+          price: sale.price,
+          status: 'aguardando', // Status inicial
+          sessions: sale.sessions,
+          usedSessions: sale.used_sessions || 0,
+        };
+        
+        if (sale.type === 'procedimento') {
+          pending.push(appointment);
+        } else if (sale.type === 'pacote') {
+          // Lógica para determinar status do pacote
+          const isConcluido = appointment.usedSessions !== undefined && appointment.sessions !== undefined && appointment.usedSessions >= appointment.sessions;
+          appointment.status = isConcluido ? 'concluido' : 'aguardando';
+          packages.push(appointment);
+        }
+      }
+    });
+
+    return { pendingProcedures: pending, activPackages: packages };
   }, [sales]);
 
-  useEffect(() => {
-  }, [pendingProcedures]);
-
-  useEffect(() => {
-    localStorage.setItem('activPackages', JSON.stringify(activPackages));
-  }, [activPackages]);
-
-  const addClient = (clientData: Omit<Client, 'id'>) => {
-    const newClient = {
-      ...clientData,
-      id: Math.max(...clients.map(c => c.id), 0) + 1,
-    };
-    setClients(prev => [newClient, ...prev]);
-  };
-
-  const addSale = (saleData: Omit<Sale, 'id'>) => {
-    const newSale = {
-      ...saleData,
-      id: sales.length > 0 ? Math.max(...sales.map(s => s.id)) + 1 : 1,
-    };
-    setSales(prev => [newSale, ...prev]);
-
-    // Automaticamente criar entrada nos agendamentos apenas para procedimentos e pacotes
-    if (saleData.type !== 'produto') {
-      const pendingAppointment: PendingAppointment = {
-        id: newSale.id,
-        saleId: newSale.id,
-        client: newSale.client,
-        clientId: newSale.clientId,
-        service: newSale.item,
-        type: newSale.type,
-        price: newSale.price,
-        status: 'aguardando',
-        sessions: newSale.sessions,
-        usedSessions: newSale.usedSessions || 0,
-      };
-
-      if (saleData.type === 'procedimento') {
-        setPendingProcedures(prev => [pendingAppointment, ...prev]);
-      } else {
-        setActivPackages(prev => [pendingAppointment, ...prev]);
-      }
-    }
-  };
-
-  const addAppointment = (appointmentData: Omit<Appointment, 'id'>) => {
-    const newAppointment = {
-      ...appointmentData,
-      id: Math.max(...appointments.map(a => a.id), 0) + 1,
-    };
-    setAppointments(prev => [newAppointment, ...prev]);
-  };
-
-  const scheduleFromPending = (pendingId: number, time: string, date: string) => {
-    // Encontrar o item pendente
-    const pendingProcedure = pendingProcedures.find(p => p.id === pendingId);
-    const pendingPackage = activPackages.find(p => p.id === pendingId);
-    
-    const pending = pendingProcedure || pendingPackage;
-    if (!pending) return;
-
-    // Criar agendamento
-    const newAppointment: Appointment = {
-      id: Math.max(...appointments.map(a => a.id), 0) + 1,
-      client: pending.client,
-      clientId: pending.clientId,
-      service: pending.service,
-      time,
-      date,
-      status: 'confirmado',
-      price: pending.price,
-      type: pending.type,
-    };
-
-    setAppointments(prev => [newAppointment, ...prev]);
-
-    // Remover dos pendentes se for procedimento
-    if (pending.type === 'procedimento') {
-      setPendingProcedures(prev => prev.filter(p => p.id !== pendingId));
-    }
-    // Se for pacote, apenas marcar como agendado mas manter na lista
-    else {
-      setActivPackages(prev => 
-        prev.map(p => p.id === pendingId ? { ...p, status: 'agendado' as const } : p)
-      );
-    }
-  };
-
-  const editSale = (id: number, saleData: Partial<Sale>) => {
-    setSales(prev => prev.map(sale => sale.id === id ? { ...sale, ...saleData } : sale));
-    
-    // Update corresponding pending appointments - only update compatible fields
-    const appointmentUpdate = {
-      ...(saleData.client && { client: saleData.client }),
-      ...(saleData.clientId && { clientId: saleData.clientId }),
-      ...(saleData.item && { service: saleData.item }),
-      ...(saleData.type && { type: saleData.type }),
-      ...(saleData.price && { price: saleData.price }),
-      ...(saleData.sessions && { sessions: saleData.sessions }),
-      ...(saleData.usedSessions !== undefined && { usedSessions: saleData.usedSessions }),
-    };
-    
-    if (saleData.type === 'procedimento' || sales.find(s => s.id === id)?.type === 'procedimento') {
-      setPendingProcedures(prev => prev.map(p => 
-        p.saleId === id ? { ...p, ...appointmentUpdate } : p
-      ));
-    } else {
-      setActivPackages(prev => prev.map(p => 
-        p.saleId === id ? { ...p, ...appointmentUpdate } : p
-      ));
-    }
-  };
-
-  const deleteSale = (id: number) => {
-    const sale = sales.find(s => s.id === id);
-    if (!sale) return;
-
-    setSales(prev => prev.filter(s => s.id !== id));
-    
-    // Remove corresponding pending appointments
-    if (sale.type === 'procedimento') {
-      setPendingProcedures(prev => prev.filter(p => p.saleId !== id));
-    } else {
-      setActivPackages(prev => prev.filter(p => p.saleId !== id));
-    }
-  };
-
-  const updatePackageSession = (packageId: number) => {
-    setActivPackages(prev => 
-      prev.map(p => {
-        if (p.id === packageId && p.sessions && p.usedSessions !== undefined) {
-          const newUsedSessions = p.usedSessions + 1;
-          return {
-            ...p,
-            usedSessions: newUsedSessions,
-            status: newUsedSessions >= p.sessions ? 'concluido' as const : 'aguardando' as const
-          };
-        }
-        return p;
-      })
-    );
-  };
-
-  const value = {
+  const value: SalonContextType = {
     clients,
     sales,
     appointments,
     pendingProcedures,
     activPackages,
-    addClient,
-    addSale,
-    editSale,
-    deleteSale,
-    addAppointment,
-    scheduleFromPending,
-    updatePackageSession,
+    addSale: (sale) => addSaleMutation.mutate(sale),
+    addClient: (client) => addClientMutation.mutate(client),
+    // Funções placeholder - precisam ser implementadas com mutações
+    editSale: (id, sale) => console.log('editSale not implemented', id, sale),
+    deleteSale: (id) => console.log('deleteSale not implemented', id),
+    addAppointment: (appt) => console.log('addAppointment not implemented', appt),
+    scheduleFromPending: (id, time, date) => console.log('scheduleFromPending not implemented', id, time, date),
+    updatePackageSession: (id) => console.log('updatePackageSession not implemented', id),
+    isLoadingClients,
+    isLoadingSales,
   };
 
   return (
