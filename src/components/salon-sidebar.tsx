@@ -13,6 +13,7 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  ShoppingCart,
 } from "lucide-react";
 
 import {
@@ -36,6 +37,7 @@ const navigationItems = [
   { title: "Agendamentos", url: "/agendamentos", icon: Calendar },
   { title: "Pacotes", url: "/pacotes", icon: Package },
   { title: "Caixa", url: "/caixa", icon: CreditCard },
+
   { title: "Procedimentos", url: "/procedimentos", icon: Scissors },
   { title: "Estoque", url: "/estoque", icon: Package2 },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },

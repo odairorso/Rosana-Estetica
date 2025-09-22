@@ -4,27 +4,35 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SalonSidebar } from "@/components/salon-sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CreditCard, Plus, ShoppingCart, DollarSign, TrendingUp, TrendingDown, Calendar } from "lucide-react";
-import { ShoppingCartModal } from "@/components/shopping-cart-modal";
+import { ShoppingCart, Search, Edit, Trash2, DollarSign } from "lucide-react";
+import { EditSaleModal } from "@/components/edit-sale-modal";
+import { Sale } from "@/contexts/SalonContext";
 import { formatDateBR } from "@/lib/utils";
 
-const Caixa = () => {
-  const { sales, isLoadingSales } = useSalon();
-  const [isCartModalOpen, setIsCartModalOpen] = useState(false);
+const Vendas = () => {
+  const { sales, isLoadingSales, deleteSale } = useSalon();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Calcular estatísticas
-  const totalVendas = sales.reduce((total, sale) => {
-    const price = parseFloat(sale.price.replace("R$", "").replace(",", ".").trim());
-    return total + (isNaN(price) ? 0 : price);
-  }, 0);
+  const filteredSales = sales.filter(sale =>
+    sale.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    sale.client?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const vendasPagas = sales.filter(sale => sale.status === "pago").length;
-  const vendasPendentes = sales.filter(sale => sale.status === "pendente").length;
+  const handleEditSale = (sale: Sale) => {
+    setEditingSale(sale);
+    setIsEditModalOpen(true);
+  };
 
-  // Vendas recentes (últimas 5)
-  const vendasRecentes = sales.slice(-5).reverse();
+  const handleDeleteSale = (id: number) => {
+    if (confirm("Tem certeza que deseja excluir esta venda?")) {
+      deleteSale(id);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     return status === "pago" ? (
@@ -43,6 +51,11 @@ const Caixa = () => {
     return <Badge className={colors[type as keyof typeof colors]}>{type}</Badge>;
   };
 
+  const totalVendas = filteredSales.reduce((total, sale) => {
+    const price = parseFloat(sale.price.replace("R$", "").replace(",", ".").trim());
+    return total + (isNaN(price) ? 0 : price);
+  }, 0);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -52,93 +65,89 @@ const Caixa = () => {
           <header className="h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-6">
             <SidebarTrigger className="mr-4" />
             <div className="flex items-center space-x-2">
-              <CreditCard className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">Caixa</h2>
+              <ShoppingCart className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Vendas</h2>
             </div>
           </header>
 
           <div className="flex-1 p-6 space-y-6 overflow-auto">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-2xl font-bold text-foreground mb-2">Caixa</h1>
-                <p className="text-muted-foreground">Controle de vendas e movimentação financeira</p>
+                <h1 className="text-2xl font-bold text-foreground mb-2">Vendas</h1>
+                <p className="text-muted-foreground">Gerencie todas as vendas realizadas</p>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-2 bg-card p-2 rounded-lg">
                   <DollarSign className="w-4 h-4 text-green-600" />
                   <span className="text-sm font-medium">Total: R$ {totalVendas.toFixed(2).replace(".", ",")}</span>
                 </div>
-                <Button 
-                  onClick={() => setIsCartModalOpen(true)}
-                  className="bg-gradient-primary text-primary-foreground"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nova Venda
-                </Button>
               </div>
             </div>
 
             {/* Estatísticas */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
                   <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{sales.length}</div>
-                  <p className="text-xs text-muted-foreground">vendas realizadas</p>
+                  <div className="text-2xl font-bold">{filteredSales.length}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Vendas Pagas</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{vendasPagas}</div>
-                  <p className="text-xs text-muted-foreground">pagamentos confirmados</p>
+                  <div className="text-2xl font-bold">
+                    {filteredSales.filter(sale => sale.status === "pago").length}
+                  </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Vendas Pendentes</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-yellow-600" />
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">{vendasPendentes}</div>
-                  <p className="text-xs text-muted-foreground">aguardando pagamento</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Faturamento Total</CardTitle>
-                  <DollarSign className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-primary">R$ {totalVendas.toFixed(2).replace(".", ",")}</div>
-                  <p className="text-xs text-muted-foreground">receita total</p>
+                  <div className="text-2xl font-bold">
+                    {filteredSales.filter(sale => sale.status === "pendente").length}
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Vendas Recentes */}
+            {/* Busca */}
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Buscar por item ou cliente..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Tabela de Vendas */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <ShoppingCart className="w-5 h-5" />
-                  <span>Vendas Recentes</span>
-                </CardTitle>
+                <CardTitle>Lista de Vendas</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoadingSales ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground">Carregando vendas...</p>
                   </div>
-                ) : vendasRecentes.length === 0 ? (
+                ) : filteredSales.length === 0 ? (
                   <div className="text-center py-8">
                     <ShoppingCart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Nenhuma venda realizada ainda.</p>
+                    <p className="text-muted-foreground">
+                      {searchTerm ? "Nenhuma venda encontrada com os critérios de busca." : "Nenhuma venda realizada ainda."}
+                    </p>
                   </div>
                 ) : (
                   <Table>
@@ -151,10 +160,11 @@ const Caixa = () => {
                         <TableHead>Data</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Sessões</TableHead>
+                        <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {vendasRecentes.map((sale) => (
+                      {filteredSales.map((sale) => (
                         <TableRow key={sale.id}>
                           <TableCell className="font-medium">{sale.client || "N/A"}</TableCell>
                           <TableCell>{sale.item}</TableCell>
@@ -165,6 +175,25 @@ const Caixa = () => {
                           <TableCell>
                             {sale.sessions ? `${sale.used_sessions || 0}/${sale.sessions}` : "-"}
                           </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditSale(sale)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteSale(sale.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -174,14 +203,18 @@ const Caixa = () => {
             </Card>
           </div>
         </main>
-        
-        <ShoppingCartModal 
-          isOpen={isCartModalOpen} 
-          onClose={() => setIsCartModalOpen(false)} 
-        />
       </div>
+
+      <EditSaleModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingSale(null);
+        }}
+        sale={editingSale}
+      />
     </SidebarProvider>
   );
 };
 
-export default Caixa;
+export default Vendas;

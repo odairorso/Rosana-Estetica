@@ -7,20 +7,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Search, Plus, Phone, Mail, MapPin } from "lucide-react";
+import { Users, Search, Plus, Phone, Mail, MapPin, History, Calendar, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { formatDateBR } from "@/lib/utils";
 
 const Clientes = () => {
   const { toast } = useToast();
-  const { clients, addClient } = useSalon();
+  const { clients, sales, appointments, addClient, isLoadingClients } = useSalon();
+  
+  // Debug: log dos clientes
+  console.log('Clientes carregados:', clients);
+  console.log('Loading clientes:', isLoadingClients);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<any>(null);
   const [newClient, setNewClient] = useState({
-    name: "",
-    phone: "",
-    email: "",
+    name: '',
+    phone: '',
+    email: ''
   });
 
-  const handleNewClient = () => {
+  const handleNewClient = async () => {
     if (!newClient.name || !newClient.phone) {
       toast({
         title: "Erro",
@@ -30,21 +39,69 @@ const Clientes = () => {
       return;
     }
 
-    const client = {
-      ...newClient,
-      lastVisit: "Hoje",
-      totalSpent: "R$ 0,00",
-      packages: 0,
-    };
+    try {
+      await addClient(newClient);
+      setNewClient({ name: '', phone: '', email: '' });
+      setIsDialogOpen(false);
+      toast({
+        title: "Sucesso",
+        description: "Cliente cadastrado com sucesso!",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao cadastrar cliente",
+        variant: "destructive",
+      });
+    }
+  };
 
-    addClient(client);
-    setNewClient({ name: "", phone: "", email: "" });
-    setIsDialogOpen(false);
+  const handleViewHistory = (client: any) => {
+    setSelectedClient(client);
+    setIsHistoryOpen(true);
+  };
+
+  // Função para buscar histórico do cliente
+  const getClientHistory = (clientId: number) => {
+    const clientAppointments = appointments.filter(app => app.clientId === clientId);
+    const clientSales = sales.filter(sale => sale.client_id === clientId);
     
-    toast({
-      title: "Sucesso!",
-      description: "Cliente cadastrado com sucesso",
-    });
+    // Combinar e ordenar por data
+    const history = [
+      ...clientAppointments.map(app => ({
+        ...app,
+        type: 'appointment',
+        date: app.date,
+        description: `Agendamento: ${app.service}`,
+        status: app.status
+      })),
+      ...clientSales.map(sale => ({
+        ...sale,
+        type: 'sale',
+        date: sale.date,
+        description: `Venda: ${sale.item}`,
+        status: sale.status
+      }))
+    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    return history;
+  };
+
+  // Função para calcular sessões usadas de pacotes
+  const getPackageProgress = (clientId: number) => {
+    const clientPackages = sales.filter(sale => 
+      sale.client_id === clientId && 
+      sale.type === 'pacote' && 
+      sale.sessions && 
+      sale.used_sessions !== undefined
+    );
+    
+    return clientPackages.map(pkg => ({
+      name: pkg.item,
+      used: pkg.used_sessions || 0,
+      total: pkg.sessions || 0,
+      status: pkg.status
+    }));
   };
 
   return (
@@ -138,54 +195,241 @@ const Clientes = () => {
             </Card>
 
             <div className="grid gap-4">
-              {clients.map((client) => (
-                <Card key={client.id} className="bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
+              {isLoadingClients ? (
+                <Card className="bg-gradient-card border-0 shadow-md">
                   <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
-                          <Users className="w-6 h-6 text-primary-foreground" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-foreground">{client.name}</h3>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                            <div className="flex items-center">
-                              <Phone className="w-4 h-4 mr-1" />
-                              {client.phone}
-                            </div>
-                            <div className="flex items-center">
-                              <Mail className="w-4 h-4 mr-1" />
-                              {client.email}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="text-right">
-                        <div className="text-sm text-muted-foreground">Última visita</div>
-                        <div className="font-semibold text-foreground">{client.lastVisit}</div>
-                        <div className="text-sm text-success font-medium mt-1">{client.totalSpent}</div>
-                        <div className="text-xs text-muted-foreground">{client.packages} pacotes ativos</div>
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" className="bg-gradient-card">
-                          Ver Perfil
-                        </Button>
-                        <Button variant="outline" size="sm" className="bg-gradient-card">
-                          Agendar
-                        </Button>
-                      </div>
+                    <div className="text-center text-muted-foreground">
+                      Carregando clientes...
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              ) : clients.length === 0 ? (
+                <Card className="bg-gradient-card border-0 shadow-md">
+                  <CardContent className="p-6">
+                    <div className="text-center text-muted-foreground">
+                      Nenhum cliente encontrado. Cadastre o primeiro cliente!
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                clients.map((client) => (
+                  <Card key={client.id} className="bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
+                            <Users className="w-6 h-6 text-primary-foreground" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">{client.name}</h3>
+                            <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                              <div className="flex items-center">
+                                <Phone className="w-4 h-4 mr-1" />
+                                {client.phone}
+                              </div>
+                              <div className="flex items-center">
+                                <Mail className="w-4 h-4 mr-1" />
+                                {client.email}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right">
+                          <div className="text-sm text-muted-foreground">Última visita</div>
+                          <div className="font-semibold text-foreground">{client.lastVisit}</div>
+                          <div className="text-sm text-success font-medium mt-1">{client.totalSpent}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {getPackageProgress(client.id).length > 0 ? (
+                              <div className="flex flex-wrap gap-1 justify-end">
+                                {getPackageProgress(client.id).map((pkg, index) => (
+                                  <Badge 
+                                    key={index} 
+                                    variant={pkg.used >= pkg.total ? "destructive" : "default"}
+                                    className="text-xs"
+                                  >
+                                    {pkg.name}: {pkg.used}/{pkg.total}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span>Nenhum pacote ativo</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="bg-gradient-card"
+                            onClick={() => handleViewHistory(client)}
+                          >
+                            <History className="w-4 h-4 mr-1" />
+                            Histórico
+                          </Button>
+                          <Button variant="outline" size="sm" className="bg-gradient-card">
+                            <Calendar className="w-4 h-4 mr-1" />
+                            Agendar
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </div>
         </main>
       </div>
-    </SidebarProvider>
-  );
-};
+
+      {/* Modal de Histórico do Cliente */}
+      <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Histórico de {selectedClient?.name}
+              </DialogTitle>
+            </DialogHeader>
+            
+            {selectedClient && (
+              <div className="space-y-6">
+                {/* Informações do Cliente */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Informações do Cliente
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Nome</p>
+                        <p className="font-medium">{selectedClient.name}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Telefone</p>
+                        <p className="font-medium">{selectedClient.phone}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">E-mail</p>
+                        <p className="font-medium">{selectedClient.email || 'Não informado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Gasto</p>
+                        <p className="font-medium text-green-600">{selectedClient.totalSpent}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Pacotes Ativos */}
+                {getPackageProgress(selectedClient.id).length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Package className="w-5 h-5" />
+                        Pacotes Ativos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {getPackageProgress(selectedClient.id).map((pkg, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div>
+                              <p className="font-medium">{pkg.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Sessões utilizadas: {pkg.used}/{pkg.total}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={pkg.used >= pkg.total ? "destructive" : "default"}>
+                                {pkg.used}/{pkg.total}
+                              </Badge>
+                              <div className="w-20 bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-600 h-2 rounded-full" 
+                                  style={{ width: `${(pkg.used / pkg.total) * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Histórico de Atividades */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="w-5 h-5" />
+                      Histórico de Atividades
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {getClientHistory(selectedClient.id).length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Data</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {getClientHistory(selectedClient.id).map((item, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{formatDateBR(item.date)}</TableCell>
+                              <TableCell>
+                                <Badge variant={item.type === 'appointment' ? 'default' : 'secondary'}>
+                                  {item.type === 'appointment' ? 'Agendamento' : 'Venda'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{item.description}</TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={
+                                    item.status === 'completed' || item.status === 'finalizada' ? 'default' :
+                                    item.status === 'cancelled' || item.status === 'cancelada' ? 'destructive' :
+                                    'secondary'
+                                  }
+                                >
+                                  {item.status === 'completed' ? 'Concluído' :
+                                   item.status === 'cancelled' ? 'Cancelado' :
+                                   item.status === 'finalizada' ? 'Finalizada' :
+                                   item.status === 'cancelada' ? 'Cancelada' :
+                                   item.status === 'pending' ? 'Pendente' :
+                                   item.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {item.price ? `R$ ${item.price}` : 
+                                 item.total ? `R$ ${item.total}` : '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>Nenhum histórico encontrado para este cliente</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </SidebarProvider>
+    );
+  };
 
 export default Clientes;
