@@ -12,6 +12,7 @@ All colors MUST be HSL.
     --background: 0 0% 100%;
     --foreground: 240 10% 2%;
 
+    /* Card with transparency for glassmorphism effect */
     --card: 0 0% 100%;
     --card-foreground: 240 10% 2%;
 
@@ -38,7 +39,8 @@ All colors MUST be HSL.
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 270 20% 92%;
+    /* Softer border */
+    --border: 270 20% 88%;
     --input: 270 20% 92%;
     --ring: 345 83% 61%;
 
@@ -56,30 +58,24 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(345 83% 61%) 0%, hsl(315 70% 65%) 100%);
     --gradient-secondary: linear-gradient(135deg, hsl(270 30% 98%) 0%, hsl(270 40% 95%) 100%);
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(162 60% 45%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(270 20% 98%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100% / 0.6) 0%, hsl(270 20% 98% / 0.6) 100%);
 
     /* Elegant shadows - UPDATED */
-    --shadow-sm: 0 2px 4px -1px hsl(var(--primary) / 0.06);
-    --shadow-md: 0 4px 8px -2px hsl(var(--primary) / 0.1), 0 2px 4px -2px hsl(var(--primary) / 0.06);
-    --shadow-lg: 0 10px 15px -3px hsl(var(--primary) / 0.1), 0 4px 6px -2px hsl(var(--primary) / 0.05);
+    --shadow-sm: 0 2px 8px -1px hsl(var(--primary) / 0.08);
+    --shadow-md: 0 4px 12px -2px hsl(var(--primary) / 0.12), 0 2px 6px -2px hsl(var(--primary) / 0.08);
+    --shadow-lg: 0 10px 20px -3px hsl(var(--primary) / 0.15), 0 4px 8px -2px hsl(var(--primary) / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(var(--primary) / 0.15), 0 10px 10px -5px hsl(var(--primary) / 0.1);
     --shadow-glow: 0 0 20px hsl(345 83% 61% / 0.3);
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -88,7 +84,8 @@ All colors MUST be HSL.
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 6%;
+    /* Card with transparency for glassmorphism effect */
+    --card: 240 10% 8%;
     --card-foreground: 0 0% 98%;
 
     --popover: 240 10% 6%;
@@ -114,7 +111,7 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 6% 12%;
+    --border: 240 6% 15%;
     --input: 240 6% 12%;
     --ring: 345 83% 65%;
 
@@ -132,12 +129,13 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(345 83% 65%) 0%, hsl(315 70% 70%) 100%);
     --gradient-secondary: linear-gradient(135deg, hsl(240 6% 8%) 0%, hsl(240 8% 12%) 100%);
     --gradient-success: linear-gradient(135deg, hsl(142 76% 45%) 0%, hsl(162 60% 50%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(240 10% 6%) 0%, hsl(240 8% 8%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(240 10% 8% / 0.6) 0%, hsl(240 8% 10% / 0.6) 100%);
 
     /* Elegant dark shadows with primary color - UPDATED */
-    --shadow-sm: 0 2px 4px -1px hsl(var(--primary) / 0.1);
-    --shadow-md: 0 4px 8px -2px hsl(var(--primary) / 0.15), 0 2px 4px -2px hsl(var(--primary) / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(var(--primary) / 0.15), 0 4px 6px -2px hsl(var(--primary) / 0.1);
+    --shadow-sm: 0 2px 8px -1px hsl(var(--primary) / 0.12);
+    --shadow-md: 0 4px 12px -2px hsl(var(--primary) / 0.15), 0 2px 6px -2px hsl(var(--primary) / 0.1);
+    --shadow-lg: 0 10px 20px -3px hsl(var(--primary) / 0.18), 0 4px 8px -2px hsl(var(--primary) / 0.12);
+    --shadow-xl: 0 20px 25px -5px hsl(var(--primary) / 0.18), 0 10px 10px -5px hsl(var(--primary) / 0.12);
     --shadow-glow: 0 0 20px hsl(345 83% 65% / 0.4);
 
     --sidebar-background: 240 5.9% 10%;

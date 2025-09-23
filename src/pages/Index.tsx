@@ -11,7 +11,7 @@ import { RecentActivities } from "@/components/recent-activities";
 const Index = () => {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="min-h-screen flex w-full bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-50 dark:from-gray-900 dark:to-purple-900/50">
         <SalonSidebar />
         
         <main className="flex-1 flex flex-col min-w-0">
