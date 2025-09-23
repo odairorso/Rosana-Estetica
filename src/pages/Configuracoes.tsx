@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, ChangeEvent } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SalonSidebar } from "@/components/salon-sidebar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +48,23 @@ export default function Configuracoes() {
     passwordExpiry: "90"
   });
 
+  const [logoPreview, setLogoPreview] = useState<string | null>("/logo.png");
+
+  const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      toast({
+        title: "Logo selecionado",
+        description: "Clique em 'Salvar Alterações' para confirmar.",
+      });
+    }
+  };
+
   const handleSalonInfoChange = (field: string, value: string) => {
     setSalonInfo(prev => ({ ...prev, [field]: value }));
   };
@@ -61,6 +78,7 @@ export default function Configuracoes() {
   };
 
   const handleSave = () => {
+    // Aqui seria a lógica para salvar o logo no backend
     toast({
       title: "Configurações salvas",
       description: "Suas configurações foram atualizadas com sucesso.",
@@ -101,6 +119,24 @@ export default function Configuracoes() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <img 
+                    src={logoPreview || "/placeholder.svg"} 
+                    alt="Logo do Salão" 
+                    className="w-16 h-16 rounded-lg object-cover"
+                  />
+                  <div className="space-y-2 flex-1">
+                    <Label htmlFor="logo-upload">Logo do Salão</Label>
+                    <Input 
+                      id="logo-upload" 
+                      type="file" 
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"
+                      onChange={handleLogoChange}
+                      accept="image/png, image/jpeg, image/svg+xml"
+                    />
+                  </div>
+                </div>
+                <Separator />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="salon-name">Nome do Salão</Label>
