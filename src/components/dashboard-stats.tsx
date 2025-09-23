@@ -6,21 +6,33 @@ import { useSalon } from "@/contexts/SalonContext";
 export function DashboardStats() {
   const { sales, appointments, clients, isLoadingSales, isLoadingAppointments, isLoadingClients } = useSalon();
 
-  // Calcular estatísticas em tempo real
-  const today = new Date().toISOString().split('T')[0];
+  // Função para obter a data de hoje no formato YYYY-MM-DD, considerando o fuso horário local
+  const getTodayLocalString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayString = getTodayLocalString();
   
   // Faturamento hoje
   const todayRevenue = sales
-    .filter(sale => sale.date === today && sale.status === 'pago')
+    .filter(sale => sale.date === todayString && sale.status === 'pago')
     .reduce((total, sale) => total + parseFloat(sale.price.replace('R$ ', '').replace(',', '.')), 0);
 
   // Agendamentos hoje
-  const todayAppointments = appointments.filter(appointment => appointment.date === today);
+  const todayAppointments = appointments.filter(appointment => appointment.date === todayString);
 
   // Pacotes vendidos este mês
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   const packagesThisMonth = sales.filter(sale => {
+    // Adicionando verificação para garantir que sale.date é uma string válida
+    if (typeof sale.date !== 'string' || !sale.date.includes('-')) {
+      return false;
+    }
     const saleDate = new Date(sale.date);
     return sale.type === 'pacote' && 
            saleDate.getMonth() === currentMonth && 
