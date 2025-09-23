@@ -141,7 +141,12 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
         item: item.name,
         type: item.type,
         price: item.price.toString(),
-        date: new Date().toISOString(),
+        date: new Date().toLocaleDateString('pt-BR', {
+          timeZone: 'America/Sao_Paulo',
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        }),
         status: saleStatus,
         sessions: item.sessions,
         used_sessions: item.type === 'pacote' ? 0 : undefined,

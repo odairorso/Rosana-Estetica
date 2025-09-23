@@ -183,6 +183,11 @@ export default function Agendamentos() {
     if (!selectedSale) return;
 
     try {
+      // Para pacotes, calcular o preço por sessão
+      const sessionPrice = selectedSale.type === 'pacote' && selectedSale.sessions 
+        ? (parseFloat(selectedSale.price) / selectedSale.sessions).toString()
+        : selectedSale.price;
+
       const appointmentData = {
         client_id: selectedSale.client_id,
         service: selectedSale.item,
@@ -190,7 +195,7 @@ export default function Agendamentos() {
         time: time,
         status: 'confirmado',
         type: selectedSale.type,
-        price: selectedSale.price,
+        price: sessionPrice,
         sale_id: selectedSale.id
       };
 
@@ -459,7 +464,7 @@ export default function Agendamentos() {
                           <div>
                             <p className="font-medium text-foreground">{sale.item}</p>
                             <p className="text-sm text-muted-foreground">
-                              {getClientName(sale.client_id)} - Próxima sessão: {getNextSessionNumber(sale)}/{sale.sessions} - R$ {parseFloat(sale.price).toFixed(2)}
+                              {getClientName(sale.client_id)} - Próxima sessão: {getNextSessionNumber(sale)}/{sale.sessions} - R$ {(parseFloat(sale.price) / sale.sessions).toFixed(2)}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2">

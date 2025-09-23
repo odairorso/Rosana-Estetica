@@ -20,7 +20,13 @@ const formatDate = (dateString: string) => {
   }
   // Caso contrario, converte de ISO para formato brasileiro
   const date = new Date(dateString);
-  return date.toLocaleDateString('pt-BR');
+  // Usar toLocaleDateString com opções específicas para evitar problemas de timezone
+  return date.toLocaleDateString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
 };
 
 interface Client {
@@ -69,6 +75,8 @@ export default function Clientes() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientHistory, setClientHistory] = useState<any[]>([]);
+  const [clientAppointments, setClientAppointments] = useState<Appointment[]>([]);
+  const [clientSales, setClientSales] = useState<Sale[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -300,78 +308,229 @@ export default function Clientes() {
   const handleViewHistory = async (client: Client) => {
     setSelectedClient(client);
     
-    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]') as Appointment[];
-    const sales = JSON.parse(localStorage.getItem('sales') || '[]') as Sale[];
-    
-    const clientAppointments = appointments.filter(app => app.client_id === client.id);
-    
-    const history = clientAppointments.map(app => {
-      let packageInfo = null;
-      
-      // Verificar se e um pacote
-      if (app.package_id) {
-        // Para pacotes, encontrar a venda correspondente para obter informacoes do pacote
-        const relatedSale = sales.find(sale => 
-          sale.id === app.package_id && 
-          sale.client_id === client.id && 
-          sale.type === 'package'
-        );
-        
-        if (relatedSale) {
-          // Contar quantas sessoes deste pacote ja foram realizadas ate esta data
-          const packageAppointments = clientAppointments
-            .filter(a => a.package_id === app.package_id)
-            .filter(a => new Date(a.date + ' ' + a.time) <= new Date(app.date + ' ' + app.time))
-            .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
-          
-          const currentSessionNumber = packageAppointments.findIndex(a => a.id === app.id) + 1;
-          
-          packageInfo = currentSessionNumber > 0 ? `${currentSessionNumber}a sessao de ${relatedSale.sessions}` : null;
-        }
-      } else {
-        // Para procedimentos individuais, contar sessoes normalmente
-        const procedureAppointments = clientAppointments
-          .filter(a => a.service === app.service && !a.package_id)
-          .filter(a => new Date(a.date + ' ' + a.time) <= new Date(app.date + ' ' + app.time))
-          .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
-        
-        const currentSessionNumber = procedureAppointments.findIndex(a => a.id === app.id) + 1;
-        
-        packageInfo = (app.status === 'concluido' || app.status === 'completed') && currentSessionNumber > 0 ? `${currentSessionNumber}a sessao` : null;
+    try {
+      // Buscar agendamentos do Supabase
+      const { data: appointments, error: appointmentsError } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('client_id', client.id);
+
+      if (appointmentsError) {
+        console.error('Erro ao buscar agendamentos:', appointmentsError);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar histórico de agendamentos",
+          variant: "destructive",
+        });
+        return;
       }
+
+      // Buscar vendas do Supabase
+      const { data: sales, error: salesError } = await supabase
+        .from('sales')
+        .select('*')
+        .eq('client_id', client.id);
+
+      if (salesError) {
+        console.error('Erro ao buscar vendas:', salesError);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar histórico de vendas",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const clientAppointments = appointments || [];
+      const clientSales = sales || [];
       
-      return {
-        id: app.id,
-        service: app.service,
-        date: app.date,
-        time: app.time,
-        status: app.status,
-        price: app.price,
-        packageInfo,
-        type: app.package_id ? 'package' : 'procedure'
-      };
-    }).sort((a, b) => {
-      const dateA = new Date(a.date + ' ' + a.time);
-      const dateB = new Date(b.date + ' ' + b.time);
-      return dateB.getTime() - dateA.getTime();
-    });
+      // Debug logs
+      console.log('Cliente ID:', client.id);
+      console.log('Vendas encontradas:', clientSales);
+      console.log('Agendamentos encontrados:', clientAppointments);
+       
+      // Armazenar nos estados para uso nas outras funções
+      setClientAppointments(clientAppointments);
+      setClientSales(clientSales);
     
-    setClientHistory(history);
-    setIsHistoryOpen(true);
+      // Criar histórico dos agendamentos
+      const appointmentHistory = clientAppointments.map(app => {
+        let packageInfo = null;
+        let displayPrice = app.price;
+        let isPackageSession = false;
+        
+        // Verificar se e um pacote
+        if (app.package_id) {
+          isPackageSession = true;
+          // Para pacotes, encontrar a venda correspondente para obter informacoes do pacote
+          const relatedSale = clientSales.find(sale => 
+            sale.id === app.package_id && 
+            sale.client_id === client.id && 
+            sale.type === 'pacote'
+          );
+          
+          if (relatedSale) {
+            // Calcular valor por sessao (dividir preco total do pacote pelo numero de sessoes)
+            const totalPrice = parseFloat(relatedSale.price) || 0;
+            const totalSessions = relatedSale.sessions || 1;
+            displayPrice = totalPrice / totalSessions;
+            
+            // Contar quantas sessoes deste pacote ja foram realizadas ate esta data
+            const packageAppointments = clientAppointments
+              .filter(a => a.package_id === app.package_id)
+              .filter(a => {
+                try {
+                  const aDateTime = new Date(`${a.date}T${a.time || '00:00'}`);
+                  const appDateTime = new Date(`${app.date}T${app.time || '00:00'}`);
+                  return !isNaN(aDateTime.getTime()) && !isNaN(appDateTime.getTime()) && aDateTime <= appDateTime;
+                } catch (e) {
+                  console.warn('Erro ao comparar datas:', e);
+                  return false;
+                }
+              })
+              .sort((a, b) => {
+                try {
+                  const aDateTime = new Date(`${a.date}T${a.time || '00:00'}`);
+                  const bDateTime = new Date(`${b.date}T${b.time || '00:00'}`);
+                  return aDateTime.getTime() - bDateTime.getTime();
+                } catch (e) {
+                  console.warn('Erro ao ordenar datas:', e);
+                  return 0;
+                }
+              });
+            
+            const currentSessionNumber = packageAppointments.findIndex(a => a.id === app.id) + 1;
+            
+            packageInfo = currentSessionNumber > 0 ? `${currentSessionNumber}ª sessão de ${relatedSale.sessions}` : null;
+          }
+        } else {
+          // Para procedimentos individuais, contar sessoes normalmente
+          const procedureAppointments = clientAppointments
+            .filter(a => a.service === app.service && !a.package_id)
+            .filter(a => {
+              try {
+                const aDateTime = new Date(`${a.date}T${a.time || '00:00'}`);
+                const appDateTime = new Date(`${app.date}T${app.time || '00:00'}`);
+                return !isNaN(aDateTime.getTime()) && !isNaN(appDateTime.getTime()) && aDateTime <= appDateTime;
+              } catch (e) {
+                console.warn('Erro ao comparar datas:', e);
+                return false;
+              }
+            })
+            .sort((a, b) => {
+              try {
+                const aDateTime = new Date(`${a.date}T${a.time || '00:00'}`);
+                const bDateTime = new Date(`${b.date}T${b.time || '00:00'}`);
+                return aDateTime.getTime() - bDateTime.getTime();
+              } catch (e) {
+                console.warn('Erro ao ordenar datas:', e);
+                return 0;
+              }
+            });
+          
+          const currentSessionNumber = procedureAppointments.findIndex(a => a.id === app.id) + 1;
+          
+          packageInfo = (app.status === 'concluido' || app.status === 'completed') && currentSessionNumber > 0 ? `${currentSessionNumber}ª sessão` : null;
+        }
+        
+        return {
+          id: `appointment-${app.id}`,
+          service: app.service,
+          date: app.date,
+          time: app.time,
+          status: app.status,
+          price: displayPrice,
+          packageInfo,
+          type: app.package_id ? 'package' : 'procedure',
+          isPackageSession,
+          source: 'appointment'
+        };
+      });
+
+      // Criar histórico das vendas diretas (produtos e outros itens que não geram agendamentos)
+      const salesHistory = clientSales.map(sale => {
+        // Converter a data ISO para formato brasileiro com validação
+        let formattedDate = '';
+        let formattedTime = '';
+        
+        try {
+          const saleDate = new Date(sale.date);
+          if (!isNaN(saleDate.getTime())) {
+            formattedDate = saleDate.toISOString().split('T')[0]; // YYYY-MM-DD
+            formattedTime = saleDate.toLocaleTimeString('pt-BR', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            });
+          } else {
+            // Fallback para data inválida
+            formattedDate = sale.date.split('T')[0] || sale.date;
+            formattedTime = '00:00';
+          }
+        } catch (e) {
+          console.warn('Erro ao formatar data da venda:', e, sale.date);
+          formattedDate = sale.date.split('T')[0] || sale.date;
+          formattedTime = '00:00';
+        }
+
+        let packageInfo = null;
+        if (sale.type === 'pacote' && sale.sessions) {
+          const usedSessions = sale.used_sessions || 0;
+          packageInfo = `${usedSessions}/${sale.sessions} sessões utilizadas`;
+        }
+
+        return {
+          id: `sale-${sale.id}`,
+          service: sale.item,
+          date: formattedDate,
+          time: formattedTime,
+          status: sale.status === 'pago' ? 'concluido' : 'pendente',
+          price: parseFloat(sale.price) || 0,
+          packageInfo,
+          type: sale.type === 'pacote' ? 'package' : sale.type === 'procedimento' ? 'procedure' : 'product',
+          sessions: sale.sessions, // Adicionando sessions para exibição dividida
+          isPackageSession: false,
+          source: 'sale'
+        };
+      });
+
+      // Combinar e ordenar todo o histórico por data/hora
+      const combinedHistory = [...appointmentHistory, ...salesHistory].sort((a, b) => {
+        try {
+          const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
+          const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
+          
+          if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
+            return 0; // Manter ordem original se alguma data for inválida
+          }
+          
+          return dateB.getTime() - dateA.getTime();
+        } catch (e) {
+          console.warn('Erro ao ordenar histórico:', e);
+          return 0;
+        }
+      });
+    
+      setClientHistory(combinedHistory);
+      setIsHistoryOpen(true);
+    } catch (error) {
+      console.error('Erro ao carregar histórico:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar histórico do cliente",
+        variant: "destructive",
+      });
+    }
   };
 
   // Funcao para calcular progresso de todos os pacotes (incluindo finalizados)
   const getAllPackageProgress = (clientId: string) => {
-    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]') as Appointment[];
-    const sales = JSON.parse(localStorage.getItem('sales') || '[]') as Sale[];
-    
-    const clientPackages = sales.filter(sale => 
+    const clientPackages = clientSales.filter(sale => 
       sale.client_id === clientId && 
       sale.type === 'package'
     );
     
     return clientPackages.map(pkg => {
-      const packageAppointments = appointments.filter(app => app.package_id === pkg.id);
+      const packageAppointments = clientAppointments.filter(app => app.package_id === pkg.id);
       const completedSessions = packageAppointments.filter(app => 
         app.status === 'concluido' || app.status === 'completed'
       ).length;
@@ -386,8 +545,7 @@ export default function Clientes() {
 
   // Funcao para calcular resumo das sessoes por tipo de procedimento
   const getSessionsSummary = (clientId: string) => {
-    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]') as Appointment[];
-    const completedAppointments = appointments.filter(app => 
+    const completedAppointments = clientAppointments.filter(app => 
       app.client_id === clientId && 
       (app.status === 'concluido' || app.status === 'completed')
     );
@@ -882,33 +1040,74 @@ export default function Clientes() {
                   {clientHistory.length > 0 ? (
                     <div className="space-y-4">
                       {clientHistory.map((item, index) => (
-                        <div key={index} className="border-l-2 border-primary pl-4 pb-4">
+                        <div 
+                          key={index} 
+                          className={`border-l-4 pl-4 pb-4 rounded-r-lg bg-black shadow-sm ${
+                            item.type === 'package' 
+                              ? 'border-blue-400 hover:bg-blue-900/20' 
+                              : item.type === 'produto'
+                              ? 'border-purple-400 hover:bg-purple-900/20'
+                              : 'border-green-400 hover:bg-green-900/20'
+                          }`}
+                        >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div>
-                              <h4 className="font-medium">{item.service}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{item.service}</h4>
+                                {item.type === 'package' && (
+                                  <Badge variant="outline" className="text-xs bg-blue-900/30 text-blue-300 border-blue-400 font-medium">
+                                    Pacote
+                                  </Badge>
+                                )}
+                                {item.type === 'procedure' && (
+                                  <Badge variant="outline" className="text-xs bg-green-900/30 text-green-300 border-green-400 font-medium">
+                                    Individual
+                                  </Badge>
+                                )}
+                                {item.type === 'produto' && (
+                                  <Badge variant="outline" className="text-xs bg-purple-900/30 text-purple-300 border-purple-400 font-medium">
+                                    Produto
+                                  </Badge>
+                                )}
+                              </div>
                               <p className="text-sm text-muted-foreground">
-                                {item.date ? formatDate(item.date) : 'Data não disponível'} as {item.time}
+                                {item.date ? formatDate(item.date) : 'Data não disponível'} às {item.time}
                                 {item.packageInfo && (
-                                  <span className="ml-2 text-primary">({item.packageInfo})</span>
+                                  <span className={`ml-2 font-medium ${
+                                    item.type === 'package' ? 'text-blue-400' : 'text-green-400'
+                                  }`}>
+                                    ({item.packageInfo})
+                                  </span>
                                 )}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge 
                                 variant={
-                                  item.status === 'completed' ? 'default' :
-                                  item.status === 'confirmed' ? 'secondary' : 'outline'
+                                  item.status === 'completed' || item.status === 'concluido' ? 'default' :
+                                  item.status === 'confirmed' || item.status === 'confirmado' ? 'secondary' : 'outline'
                                 }
                               >
-                                {item.status === 'completed' ? 'Concluido' :
-                                 item.status === 'confirmed' ? 'Confirmado' : item.status}
+                                {item.status === 'completed' || item.status === 'concluido' ? 'Concluído' :
+                                 item.status === 'confirmed' || item.status === 'confirmado' ? 'Confirmado' : item.status}
                               </Badge>
                               <span className="text-sm font-medium">
-                                R$ {typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}
-                                {item.type === 'package' && (
-                                  <span className="text-xs text-muted-foreground ml-1">
-                                    por sessao
-                                  </span>
+                                {item.type === 'package' && item.sessions ? (
+                                  <>
+                                    {item.sessions}x R$ {(typeof item.price === 'number' ? item.price / item.sessions : 0).toFixed(2)}
+                                    <span className="text-xs text-blue-400 ml-1 font-medium">
+                                      (Total: R$ {typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'})
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    R$ {typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}
+                                    {item.type === 'produto' && (
+                                      <span className="text-xs text-purple-600 ml-1 font-medium">
+                                        unidade
+                                      </span>
+                                    )}
+                                  </>
                                 )}
                               </span>
                             </div>
