@@ -51,14 +51,7 @@ export const ScheduleAppointmentModal = ({
     return dateString;
   };
 
-  const [date, setDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const day = tomorrow.getDate().toString().padStart(2, '0');
-    const month = (tomorrow.getMonth() + 1).toString().padStart(2, '0');
-    const year = tomorrow.getFullYear();
-    return `${day}/${month}/${year}`;
-  });
+  const [date, setDate] = useState('');
   const [time, setTime] = useState('09:00');
   const [errors, setErrors] = useState<{ date?: string; time?: string }>({});
 
@@ -116,12 +109,7 @@ export const ScheduleAppointmentModal = ({
       onConfirm(dateToSend, time);
       onClose();
       // Reset form
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const day = tomorrow.getDate().toString().padStart(2, '0');
-      const month = (tomorrow.getMonth() + 1).toString().padStart(2, '0');
-      const year = tomorrow.getFullYear();
-      setDate(`${day}/${month}/${year}`);
+      setDate('');
       setTime('09:00');
       setErrors({});
     }

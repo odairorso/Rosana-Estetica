@@ -31,11 +31,32 @@ export default function Agendamentos() {
 
   const formatSafeDate = (dateString: string) => {
     try {
+      // Se a data está no formato dd/mm/yyyy, retorna como está
+      if (dateString.includes('/')) {
+        return dateString;
+      }
+      
+      // Se está no formato yyyy-mm-dd, converte para dd/mm/yyyy
+      if (dateString.includes('-')) {
+        const [year, month, day] = dateString.split('-');
+        if (year && month && day) {
+          return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+        }
+      }
+      
+      // Fallback: tentar criar um objeto Date
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
         return 'Data inválida';
       }
-      return date.toLocaleDateString('pt-BR');
+      
+      // Usar toLocaleDateString com opções específicas para evitar problemas de timezone
+      return date.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC'
+      });
     } catch (error) {
       return 'Data inválida';
     }
@@ -113,15 +134,24 @@ export default function Agendamentos() {
     // Sessões já confirmadas (concluídas)
     const confirmedSessions = sale.used_sessions || 0;
     
-    // Contar agendamentos pendentes/confirmados para este pacote
-    const scheduledSessions = appointments.filter(appointment => 
+    // Contar agendamentos confirmados para este pacote
+    const scheduledAppointments = appointments.filter(appointment => 
       appointment.sale_id === sale.id && 
       appointment.type === 'pacote' &&
       (appointment.status === 'confirmado' || appointment.status === 'concluido')
-    ).length;
+    );
     
-    // A próxima sessão é: sessões confirmadas + agendamentos pendentes + 1
-    const nextSession = Math.max(confirmedSessions, scheduledSessions) + 1;
+    console.log(`Debug - Pacote ${sale.item} (ID: ${sale.id}):`);
+    console.log(`- Sessões confirmadas (used_sessions): ${confirmedSessions}`);
+    console.log(`- Agendamentos encontrados:`, scheduledAppointments);
+    console.log(`- Total de agendamentos: ${scheduledAppointments.length}`);
+    
+    // A próxima sessão é a soma de:
+    // 1. Sessões já concluídas (used_sessions)
+    // 2. Agendamentos confirmados/concluídos + 1
+    const nextSession = confirmedSessions + scheduledAppointments.length + 1;
+    
+    console.log(`- Próxima sessão calculada: ${nextSession}`);
     
     return nextSession;
   };
@@ -176,12 +206,11 @@ export default function Agendamentos() {
       console.log('Criando agendamento:', appointmentData);
       await addAppointment(appointmentData);
       console.log('Agendamento criado com sucesso!');
-      console.log('Agendamentos atuais:', appointments);
       
       setIsScheduleModalOpen(false);
       setSelectedSale(null);
-      // Forçar uma atualização da página para garantir que os agendamentos sejam recarregados
-      window.location.reload();
+      
+      // Os dados serão atualizados automaticamente pelo React Query
     } catch (error) {
       console.error('Erro ao criar agendamento:', error);
       alert('Erro ao criar agendamento. Tente novamente.');
@@ -258,7 +287,28 @@ export default function Agendamentos() {
                               {appointment.type === 'pacote' && appointment.sale_id && (() => {
                                 const sale = sales.find(s => s.id === appointment.sale_id);
                                 if (sale) {
-                                  const currentSession = (sale.used_sessions || 0) + 1;
+                                  // Sessões já concluídas (used_sessions)
+                                  const confirmedSessions = sale.used_sessions || 0;
+                                  
+                                  // Buscar TODOS os agendamentos deste pacote e ordená-los por data/hora
+                                  const allPackageAppointments = appointments
+                                    .filter(appt => 
+                                      appt.sale_id === sale.id && 
+                                      appt.type === 'pacote' &&
+                                      (appt.status === 'confirmado' || appt.status === 'concluido')
+                                    )
+                                    .sort((a, b) => {
+                                      // Ordenar por data e depois por hora
+                                      const dateA = new Date(`${a.date} ${a.time}`);
+                                      const dateB = new Date(`${b.date} ${b.time}`);
+                                      return dateA.getTime() - dateB.getTime();
+                                    });
+                                  
+                                  // Encontrar a posição do agendamento atual na lista ordenada
+                                  const appointmentIndex = allPackageAppointments.findIndex(appt => appt.id === appointment.id);
+                                  
+                                  // A sessão atual é: sessões concluídas + posição na lista (começando em 1)
+                                  const currentSession = confirmedSessions + (appointmentIndex + 1);
                                   const totalSessions = sale.sessions || 1;
                                   return ` - Sessão ${currentSession}/${totalSessions}`;
                                 }

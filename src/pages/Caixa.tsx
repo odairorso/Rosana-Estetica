@@ -8,6 +8,7 @@ import { CreditCard, Plus, Calendar, User, DollarSign, Package } from "lucide-re
 import { ShoppingCartModal } from "@/components/shopping-cart-modal";
 import { useSalon } from "@/contexts/SalonContext";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { EditSaleModal } from "@/components/edit-sale-modal";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
