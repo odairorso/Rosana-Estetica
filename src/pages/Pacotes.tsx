@@ -8,7 +8,6 @@ import { Package, Plus, Calendar, Edit, Trash2 } from "lucide-react";
 import { useSalon } from "@/contexts/SalonContext";
 import { AddPackageModal } from "@/components/add-package-modal";
 import { EditPackageModal } from "@/components/edit-package-modal";
-
 const Pacotes = () => {
   const { activPackages, deleteSale, updatePackageSession } = useSalon();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -47,12 +46,12 @@ const Pacotes = () => {
                 <p className="text-muted-foreground">Visualize e controle todos os pacotes de serviços</p>
               </div>
               <Button 
-                className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg"
-                onClick={() => setIsAddModalOpen(true)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Pacote
-              </Button>
+            className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg"
+            onClick={() => setIsAddModalOpen(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Pacote
+          </Button>
             </div>
 
             <div className="grid gap-4">

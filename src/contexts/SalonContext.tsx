@@ -72,11 +72,24 @@ export interface Procedure {
   created_at: string;
 }
 
+export interface Package {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  sessions: number;
+  procedures: string[];
+  validity_days: number;
+  active: boolean;
+  created_at: string;
+}
+
 interface SalonContextType {
   clients: Client[];
   sales: Sale[];
   appointments: Appointment[];
   procedures: Procedure[];
+  packages: Package[];
   pendingProcedures: PendingAppointment[];
   activPackages: PendingAppointment[];
   addClient: (client: Omit<Client, 'id'>) => Promise<void>;
@@ -94,6 +107,7 @@ interface SalonContextType {
   isLoadingSales: boolean;
   isLoadingAppointments: boolean;
   isLoadingProcedures: boolean;
+  isLoadingPackages: boolean;
 }
 
 const SalonContext = createContext<SalonContextType | undefined>(undefined);
@@ -161,6 +175,12 @@ const fetchProcedures = async (): Promise<Procedure[]> => {
   return data || [];
 };
 
+const fetchPackages = async (): Promise<Package[]> => {
+  const { data, error } = await supabase.from('packages').select('*').eq('active', true);
+  if (error) throw new Error(error.message);
+  return data || [];
+};
+
 export function SalonProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
@@ -183,6 +203,11 @@ export function SalonProvider({ children }: { children: ReactNode }) {
   const { data: procedures = [], isLoading: isLoadingProcedures } = useQuery<Procedure[]>({
     queryKey: ['procedures'],
     queryFn: fetchProcedures,
+  });
+
+  const { data: packages = [], isLoading: isLoadingPackages } = useQuery<Package[]>({
+    queryKey: ['packages'],
+    queryFn: fetchPackages,
   });
 
   // Mutations
@@ -346,10 +371,10 @@ export function SalonProvider({ children }: { children: ReactNode }) {
   // Lógica derivada (mantida no cliente)
   const { pendingProcedures, activPackages } = useMemo(() => {
     const pending: PendingAppointment[] = [];
-    const packages: PendingAppointment[] = [];
-
+    
+    // Buscar procedimentos pendentes das vendas
     sales.forEach(sale => {
-      if (sale.type !== 'produto') {
+      if (sale.type === 'procedimento') {
         const appointment: PendingAppointment = {
           id: sale.id,
           saleId: sale.id,
@@ -362,31 +387,35 @@ export function SalonProvider({ children }: { children: ReactNode }) {
           sessions: sale.sessions,
           usedSessions: sale.used_sessions || 0,
         };
-        
-        if (sale.type === 'procedimento') {
-          pending.push(appointment);
-        } else if (sale.type === 'pacote') {
-          // Pacotes sempre ficam como 'aguardando' (disponível)
-          appointment.status = 'aguardando';
-          
-          // Remover lógica de desconto automático - desconto será aplicado manualmente se necessário
-          appointment.discount_percentage = 0;
-          appointment.discounted_price = appointment.price;
-          
-          // Adiciona todos os pacotes vendidos, independente do status
-          packages.push(appointment);
-        }
+        pending.push(appointment);
       }
     });
 
-    return { pendingProcedures: pending, activPackages: packages };
-  }, [sales]);
+    // Converter pacotes da tabela packages para PendingAppointment
+    const packagesList: PendingAppointment[] = packages.map(pkg => ({
+      id: pkg.id,
+      saleId: pkg.id, // Usar o ID do pacote como saleId
+      client: 'Disponível', // Pacotes não têm cliente específico
+      clientId: 0, // Será definido quando o pacote for usado
+      service: pkg.name,
+      type: 'pacote' as const,
+      price: String(pkg.price),
+      status: 'aguardando' as const,
+      sessions: pkg.sessions,
+      usedSessions: 0,
+      discount_percentage: 0,
+      discounted_price: String(pkg.price),
+    }));
+    
+    return { pendingProcedures: pending, activPackages: packagesList };
+  }, [sales, packages]);
 
   const value: SalonContextType = {
     clients,
     sales,
     appointments,
     procedures,
+    packages,
     pendingProcedures,
     activPackages,
 
@@ -434,6 +463,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     isLoadingSales,
     isLoadingAppointments,
     isLoadingProcedures,
+    isLoadingPackages,
   };
 
   return (
