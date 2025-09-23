@@ -61,9 +61,7 @@ export function SalonSidebar() {
         <div className="flex items-center justify-between">
           {!collapsed && (
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
+              <img src="/logo.png" alt="Rosana Turci Logo" className="w-10 h-10 rounded-lg" />
               <div>
                 <h2 className="text-lg font-bold text-foreground">Rosana Turci</h2>
                 <p className="text-sm text-muted-foreground font-medium">Estética & Cosmetologia</p>
@@ -71,9 +69,7 @@ export function SalonSidebar() {
             </div>
           )}
           {collapsed && (
-            <div className="w-10 h-10 mx-auto bg-gradient-primary rounded-lg flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
+            <img src="/logo.png" alt="Rosana Turci Logo" className="w-10 h-10 rounded-lg mx-auto" />
           )}
         </div>
       </SidebarHeader>
