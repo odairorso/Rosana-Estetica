@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -10,7 +9,6 @@ import {
   Package2,
   DollarSign,
   Settings,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -30,17 +28,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useSalon } from "@/contexts/SalonContext";
+import { cn } from "@/lib/utils";
 
 const navigationItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Agendamentos", url: "/agendamentos", icon: Calendar },
-  { title: "Pacotes", url: "/pacotes", icon: Package },
-  { title: "Caixa", url: "/caixa", icon: CreditCard },
-  { title: "Procedimentos", url: "/procedimentos", icon: Scissors },
-  { title: "Estoque", url: "/estoque", icon: Package2 },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
-  { title: "Configurações", url: "/configuracoes", icon: Settings },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, color: "text-blue-500" },
+  { title: "Clientes", url: "/clientes", icon: Users, color: "text-pink-500" },
+  { title: "Agendamentos", url: "/agendamentos", icon: Calendar, color: "text-indigo-500" },
+  { title: "Pacotes", url: "/pacotes", icon: Package, color: "text-purple-500" },
+  { title: "Caixa", url: "/caixa", icon: CreditCard, color: "text-amber-600" },
+  { title: "Procedimentos", url: "/procedimentos", icon: Scissors, color: "text-teal-500" },
+  { title: "Estoque", url: "/estoque", icon: Package2, color: "text-orange-500" },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign, color: "text-green-500" },
+  { title: "Configurações", url: "/configuracoes", icon: Settings, color: "text-slate-500" },
 ];
 
 export function SalonSidebar() {
@@ -88,14 +87,18 @@ export function SalonSidebar() {
                   <SidebarMenuButton asChild className="w-full">
                     <NavLink 
                       to={item.url} 
-                      className={`flex items-center w-full px-3 py-2 rounded-md text-sm transition-all duration-200 ${
+                      className={cn(
+                        "flex items-center w-full px-3 py-2 rounded-md text-sm transition-all duration-200",
                         isActive(item.url)
                           ? "bg-gradient-primary text-white shadow-md hover:shadow-lg font-semibold"
                           : "hover:bg-secondary/50 text-foreground font-medium"
-                      }`}
+                      )}
                       title={collapsed ? item.title : undefined}
                     >
-                      <item.icon className={`${collapsed ? 'w-5 h-5' : 'w-5 h-5 mr-3'} shrink-0`} />
+                      <item.icon className={cn(
+                        `${collapsed ? 'w-5 h-5' : 'w-5 h-5 mr-3'} shrink-0`,
+                        !isActive(item.url) && item.color
+                      )} />
                       {!collapsed && <span className="font-medium text-current">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
