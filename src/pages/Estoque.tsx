@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SalonSidebar } from "@/components/salon-sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Package, Package2, Plus, AlertTriangle } from "lucide-react";
+import { AddProductModal } from "@/components/add-product-modal";
 
 const mockInventory = [
   {
@@ -45,6 +47,8 @@ const mockInventory = [
 ];
 
 const Estoque = () => {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -65,7 +69,10 @@ const Estoque = () => {
                 <h1 className="text-2xl font-bold text-foreground mb-2">Controle de Estoque</h1>
                 <p className="text-muted-foreground">Gerencie produtos e materiais</p>
               </div>
-              <Button className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg">
+              <Button 
+                className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg"
+                onClick={() => setIsAddModalOpen(true)}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Novo Produto
               </Button>
@@ -125,6 +132,11 @@ const Estoque = () => {
           </div>
         </main>
       </div>
+
+      <AddProductModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+      />
     </SidebarProvider>
   );
 };

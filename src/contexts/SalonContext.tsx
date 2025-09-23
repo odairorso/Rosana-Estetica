@@ -31,6 +31,7 @@ export interface Sale {
   status: 'pago' | 'pendente';
   sessions?: number;
   used_sessions?: number;
+  discount_percentage?: number; // Desconto em porcentagem para pacotes
 }
 
 export interface PendingAppointment {
@@ -44,6 +45,8 @@ export interface PendingAppointment {
   status: 'aguardando' | 'agendado' | 'concluido';
   sessions?: number;
   usedSessions?: number;
+  discount_percentage?: number; // Desconto em porcentagem para pacotes
+  discounted_price?: string; // Preço com desconto aplicado
 }
 
 export interface Appointment {
@@ -121,14 +124,24 @@ const addClient = async (client: Omit<Client, 'id'>): Promise<void> => {
 };
 
 const fetchSales = async (): Promise<Sale[]> => {
-  const { data, error } = await supabase.from('sales').select('*, clients(name)');
+  const { data, error } = await supabase
+    .from('sales')
+    .select(`
+      *,
+      clients (
+        name
+      )
+    `)
+    .order('date', { ascending: false });
+  
   if (error) throw new Error(error.message);
-  // Mapear para a estrutura de Sale esperada no frontend
-  return data.map(sale => ({
+  
+  // Mapear os dados para incluir o nome do cliente
+  return (data || []).map(sale => ({
     ...sale,
     price: String(sale.price), // Garantir que o preço seja string
-    client: sale.clients?.name || 'Cliente desconhecido'
-  })) || [];
+    client: sale.clients?.name || 'Cliente não encontrado'
+  }));
 };
 
 const fetchAppointments = async (): Promise<Appointment[]> => {
@@ -353,9 +366,14 @@ export function SalonProvider({ children }: { children: ReactNode }) {
         if (sale.type === 'procedimento') {
           pending.push(appointment);
         } else if (sale.type === 'pacote') {
-          // Lógica para determinar status do pacote
-          const isConcluido = appointment.usedSessions !== undefined && appointment.sessions !== undefined && appointment.usedSessions >= appointment.sessions;
-          appointment.status = isConcluido ? 'concluido' : 'aguardando';
+          // Pacotes sempre ficam como 'aguardando' (disponível)
+          appointment.status = 'aguardando';
+          
+          // Remover lógica de desconto automático - desconto será aplicado manualmente se necessário
+          appointment.discount_percentage = 0;
+          appointment.discounted_price = appointment.price;
+          
+          // Adiciona todos os pacotes vendidos, independente do status
           packages.push(appointment);
         }
       }
@@ -371,6 +389,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     procedures,
     pendingProcedures,
     activPackages,
+
     addSale: (sale) => addSaleMutation.mutate(sale),
     addClient: async (client) => {
       return new Promise((resolve, reject) => {

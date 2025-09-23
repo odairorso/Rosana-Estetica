@@ -4,7 +4,7 @@ import { SalonSidebar } from "@/components/salon-sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Plus, Calendar, User, DollarSign, Package } from "lucide-react";
+import { CreditCard, Plus, Calendar, User, DollarSign, Package, ChevronDown, ChevronUp } from "lucide-react";
 import { ShoppingCartModal } from "@/components/shopping-cart-modal";
 import { useSalon } from "@/contexts/SalonContext";
 import { format } from "date-fns";
@@ -25,6 +25,7 @@ const Caixa = () => {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState<number | null>(null);
+  const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set());
 
   const handleEdit = (sale: Sale) => {
     setSelectedSale(sale);
@@ -43,6 +44,50 @@ const Caixa = () => {
       setIsAlertOpen(false);
       setSaleToDelete(null);
     }
+  };
+
+  // Função para agrupar vendas por cliente e data
+  const groupSalesByClientAndDate = () => {
+    const grouped = sales.reduce((acc, sale) => {
+      const key = `${sale.client_id}-${sale.date}`;
+      if (!acc[key]) {
+        acc[key] = {
+          id: key,
+          client_id: sale.client_id,
+          date: sale.date,
+          items: [],
+          total: 0,
+          status: sale.status
+        };
+      }
+      acc[key].items.push(sale);
+      acc[key].total += parseFloat(sale.price);
+      return acc;
+    }, {} as Record<string, {
+      id: string;
+      client_id: string;
+      date: string;
+      items: Sale[];
+      total: number;
+      status: string;
+    }>);
+
+    return Object.values(grouped).sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
+  };
+
+  // Função para alternar expansão de uma venda
+  const toggleSaleExpansion = (saleId: string) => {
+    const newExpanded = new Set(expandedSales);
+    if (newExpanded.has(saleId)) {
+      newExpanded.delete(saleId);
+    } else {
+      newExpanded.add(saleId);
+    }
+    setExpandedSales(newExpanded);
   };
 
   const getClientName = (clientId: number) => {
@@ -206,55 +251,94 @@ const Caixa = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {sales.map((sale) => (
-                      <div key={sale.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-                            <User className="w-5 h-5 text-white" />
+                    {groupSalesByClientAndDate().map((groupedSale) => (
+                      <div key={groupedSale.id} className="bg-muted/50 rounded-lg overflow-hidden">
+                        {/* Cabeçalho da venda agrupada - clicável */}
+                        <div 
+                          className="flex items-center justify-between p-4 hover:bg-muted/70 transition-colors cursor-pointer"
+                          onClick={() => toggleSaleExpansion(groupedSale.id)}
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
+                              <User className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-foreground">
+                                {getClientName(groupedSale.client_id)}
+                              </div>
+                              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                <Calendar className="w-4 h-4" />
+                                <span>
+                                  {formatSafeDate(groupedSale.date)}
+                                </span>
+                                <span>•</span>
+                                <span>{groupedSale.items.length} {groupedSale.items.length === 1 ? 'item' : 'itens'}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium text-foreground">
-                              {getClientName(sale.client_id)}
+                          <div className="flex items-center space-x-4">
+                            <Badge className={groupedSale.status === 'pago' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                              {groupedSale.status === 'pago' ? 'Pago' : 'Pendente'}
+                            </Badge>
+                            <div className="text-right">
+                              <div className="font-bold text-foreground">
+                                R$ {groupedSale.total.toFixed(2)}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                Total da venda
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                              <Calendar className="w-4 h-4" />
-                              <span>
-                                {formatSafeDate(sale.date)}
-                              </span>
-                            </div>
+                            {expandedSales.has(groupedSale.id) ? (
+                              <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-4">
-                          <Badge className={sale.status === 'pago' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                            {sale.status === 'pago' ? 'Pago' : 'Pendente'}
-                          </Badge>
-                          <div className="text-right">
-                            <div className="font-bold text-foreground">
-                              R$ {parseFloat(sale.price).toFixed(2)}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {sale.item}
+
+                        {/* Detalhes dos itens - expansível */}
+                        {expandedSales.has(groupedSale.id) && (
+                          <div className="border-t border-border/50 bg-muted/30">
+                            <div className="p-4 space-y-3">
+                              <h4 className="text-sm font-medium text-muted-foreground mb-3">Itens da venda:</h4>
+                              {groupedSale.items.map((item) => (
+                                <div key={item.id} className="flex items-center justify-between p-3 bg-background/50 rounded-lg">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-foreground text-sm">
+                                      {item.item}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {item.type === 'pacote' && item.sessions && `${item.sessions} sessões`}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <div className="text-sm font-medium text-foreground">
+                                      R$ {parseFloat(item.price).toFixed(2)}
+                                    </div>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                          <span className="sr-only">Abrir menu</span>
+                                          <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem onClick={() => handleEdit(item)}>
+                                          <Pencil className="mr-2 h-4 w-4" />
+                                          Editar
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-red-600">
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          Excluir
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Abrir menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEdit(sale)}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDelete(sale.id)} className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>

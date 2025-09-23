@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, DollarSign, Edit, Calendar, Sparkles } from "lucide-react";
 import { useSalon } from "@/contexts/SalonContext";
 import { ScheduleProcedureModal } from "@/components/schedule-procedure-modal";
+import { AddProcedureModal } from "@/components/add-procedure-modal";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SalonSidebar } from "@/components/salon-sidebar";
 
@@ -12,6 +13,7 @@ export default function Procedimentos() {
   const { procedures, isLoadingProcedures } = useSalon();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [selectedProcedure, setSelectedProcedure] = useState<any>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Mostrar todos os procedimentos ativos (sem filtrar por vendas/agendamentos)
   const availableProcedures = procedures || [];
@@ -50,7 +52,10 @@ export default function Procedimentos() {
                 <h1 className="text-3xl font-bold text-gray-900">Procedimentos</h1>
                 <p className="text-gray-600 mt-1">Gerencie os procedimentos disponíveis</p>
               </div>
-              <Button className="bg-pink-500 hover:bg-pink-600 text-white">
+              <Button 
+                className="bg-pink-500 hover:bg-pink-600 text-white"
+                onClick={() => setIsAddModalOpen(true)}
+              >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Novo Procedimento
               </Button>
@@ -128,6 +133,11 @@ export default function Procedimentos() {
                 setSelectedProcedure(null);
               }}
               procedure={selectedProcedure}
+            />
+
+            <AddProcedureModal
+              isOpen={isAddModalOpen}
+              onClose={() => setIsAddModalOpen(false)}
             />
           </div>
         </main>

@@ -7,6 +7,7 @@ import { MonthlyGoals } from "@/components/monthly-goals";
 import { QuickActions } from "@/components/quick-actions";
 import { AlertsSection } from "@/components/alerts-section";
 import { FinancialSummary } from "@/components/financial-summary";
+import { RecentActivities } from "@/components/recent-activities";
 const Index = () => {
   return (
     <SidebarProvider>
@@ -30,13 +31,17 @@ const Index = () => {
 
             <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
               <UpcomingAppointments />
+              <RecentActivities />
+            </div>
+
+            <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
               <MonthlyGoals />
+              <FinancialSummary />
             </div>
 
             <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-3">
               <QuickActions />
               <AlertsSection />
-              <FinancialSummary />
             </div>
           </div>
         </main>
