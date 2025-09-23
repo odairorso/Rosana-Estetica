@@ -8,6 +8,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Users, Plus, Search, Edit, Trash2, Phone, Mail, History, Calendar } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SalonSidebar } from "@/components/salon-sidebar";
 
 // Funcao para formatar data
 const formatDate = (dateString: string) => {
@@ -25,16 +28,16 @@ interface Client {
   name: string;
   phone: string;
   email?: string;
-  address?: string;
-  number?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  birthDate?: string;
-  lastVisit: string;
-  totalSpent: string;
-  createdAt: string;
+  rua?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
+  cpf?: string;
+  created_at: string;
+  lastVisit?: string;
+  totalSpent?: string;
 }
 
 interface Appointment {
@@ -79,7 +82,7 @@ export default function Clientes() {
     birthDate: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name.trim() || !formData.phone.trim()) {
@@ -91,49 +94,76 @@ export default function Clientes() {
       return;
     }
 
-    const newClient: Client = {
-      id: Date.now().toString(),
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      address: formData.address,
-      number: formData.number,
-      neighborhood: formData.neighborhood,
-      city: formData.city,
-      state: formData.state,
-      zipCode: formData.zipCode,
-      birthDate: formData.birthDate,
-      lastVisit: 'Nunca',
-      totalSpent: 'R$ 0,00',
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const newClientData = {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email || null,
+        rua: formData.address || null,
+        numero: formData.number || null,
+        bairro: formData.neighborhood || null,
+        cidade: formData.city || null,
+        estado: formData.state || null,
+        cep: formData.zipCode || null,
+        cpf: formData.birthDate || null, // Temporariamente usando birthDate para CPF
+      };
 
-    const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
-    const updatedClients = [...existingClients, newClient];
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
-    setClients(updatedClients);
+      const { data, error } = await supabase
+        .from('clients')
+        .insert([newClientData])
+        .select();
 
-    setFormData({
-      name: '',
-      phone: '',
-      email: '',
-      address: '',
-      number: '',
-      neighborhood: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      birthDate: ''
-    });
+      if (error) {
+        console.error('Erro ao salvar cliente:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar o cliente no servidor.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-    setIsDialogOpen(false);
-    toast({
-      title: "Sucesso",
-      description: "Cliente cadastrado com sucesso!"
-    });
+      console.log('Cliente salvo com sucesso:', data);
+      
+      // Recarregar a lista de clientes
+      const { data: updatedClients, error: fetchError } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!fetchError && updatedClients) {
+        setClients(updatedClients);
+      }
+
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        address: '',
+        number: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        birthDate: ''
+      });
+
+      setIsDialogOpen(false);
+      toast({
+        title: "Sucesso",
+        description: "Cliente cadastrado com sucesso!"
+      });
+    } catch (error) {
+      console.error('Erro ao conectar com Supabase:', error);
+      toast({
+        title: "Erro de Conexão",
+        description: "Não foi possível conectar com o servidor.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name.trim()) {
@@ -147,29 +177,60 @@ export default function Clientes() {
 
     if (!selectedClient) return;
 
-    const updatedClient: Client = {
-      ...selectedClient,
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      address: formData.address,
-      number: formData.number,
-      neighborhood: formData.neighborhood,
-      city: formData.city,
-      state: formData.state,
-      zipCode: formData.zipCode,
-      birthDate: formData.birthDate
-    };
+    try {
+      const updatedClientData = {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email || null,
+        rua: formData.address || null,
+        numero: formData.number || null,
+        bairro: formData.neighborhood || null,
+        cidade: formData.city || null,
+        estado: formData.state || null,
+        cep: formData.zipCode || null,
+        cpf: formData.birthDate || null,
+      };
 
-    const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
-    const updatedClients = existingClients.map((client: Client) => 
-      client.id === selectedClient.id ? updatedClient : client
-    );
-    
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
-    setClients(updatedClients);
-    setIsEditDialogOpen(false);
-    setSelectedClient(null);
+      const { error } = await supabase
+        .from('clients')
+        .update(updatedClientData)
+        .eq('id', selectedClient.id);
+
+      if (error) {
+        console.error('Erro ao atualizar cliente:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o cliente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Recarregar a lista de clientes
+      const { data: updatedClients, error: fetchError } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!fetchError && updatedClients) {
+        setClients(updatedClients);
+      }
+
+      setIsEditDialogOpen(false);
+      setSelectedClient(null);
+      
+      toast({
+        title: "Sucesso",
+        description: "Cliente atualizado com sucesso!"
+      });
+    } catch (error) {
+      console.error('Erro ao conectar com Supabase:', error);
+      toast({
+        title: "Erro de Conexão",
+        description: "Não foi possível conectar com o servidor.",
+        variant: "destructive"
+      });
+    }
 
     toast({
       title: "Sucesso",
@@ -177,16 +238,45 @@ export default function Clientes() {
     });
   };
 
-  const handleDeleteClient = (client: Client) => {
-    const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
-    const updatedClients = existingClients.filter((c: Client) => c.id !== client.id);
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
-    setClients(updatedClients);
+  const handleDeleteClient = async (client: Client) => {
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', client.id);
 
-    toast({
-      title: "Sucesso",
-      description: "Cliente excluido com sucesso!"
-    });
+      if (error) {
+        console.error('Erro ao deletar cliente:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o cliente.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Recarregar a lista de clientes
+      const { data: updatedClients, error: fetchError } = await supabase
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!fetchError && updatedClients) {
+        setClients(updatedClients);
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Cliente excluido com sucesso!"
+      });
+    } catch (error) {
+      console.error('Erro ao conectar com Supabase:', error);
+      toast({
+        title: "Erro de Conexão",
+        description: "Não foi possível conectar com o servidor.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEditClient = (client: Client) => {
@@ -339,14 +429,32 @@ export default function Clientes() {
   };
 
   useEffect(() => {
-    const loadClients = () => {
+    const loadClients = async () => {
       try {
-        const savedClients = localStorage.getItem('clients');
-        if (savedClients) {
-          setClients(JSON.parse(savedClients));
+        setIsLoadingClients(true);
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Erro ao carregar clientes do Supabase:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível carregar os clientes do servidor.",
+            variant: "destructive",
+          });
+        } else {
+          console.log('Clientes carregados do Supabase:', data);
+          setClients(data || []);
         }
       } catch (error) {
-        console.error('Erro ao carregar clientes:', error);
+        console.error('Erro ao conectar com Supabase:', error);
+        toast({
+          title: "Erro de Conexão",
+          description: "Não foi possível conectar com o servidor.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoadingClients(false);
       }
@@ -356,14 +464,26 @@ export default function Clientes() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-background">
-      <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
-        <main className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Clientes</h1>
-              <p className="text-muted-foreground">Gerencie sua base de clientes</p>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <SalonSidebar />
+        
+        <main className="flex-1 flex flex-col min-w-0">
+          {/* Top Header with Sidebar Trigger */}
+          <header className="h-14 md:h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-4 md:px-6 sticky top-0 z-10">
+            <SidebarTrigger className="mr-2 md:mr-4" />
+            <div className="flex items-center space-x-2">
+              <h2 className="text-base md:text-lg font-semibold text-foreground truncate">Clientes</h2>
             </div>
+          </header>
+
+          {/* Main Content */}
+          <div className="flex-1 p-3 md:p-6 space-y-4 md:space-y-6 overflow-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground">Clientes</h1>
+                <p className="text-muted-foreground">Gerencie sua base de clientes</p>
+              </div>
             
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
@@ -641,10 +761,8 @@ export default function Clientes() {
               ))
             )}
           </div>
-        </main>
-      </div>
 
-      {/* Modal de Historico do Cliente */}
+          {/* Modal de Historico do Cliente */}
       <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -935,6 +1053,9 @@ export default function Clientes() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
   );
 }
