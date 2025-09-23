@@ -316,24 +316,24 @@ const Clientes = () => {
       <div className="min-h-screen flex w-full bg-background">
         <SalonSidebar />
         
-        <main className="flex-1 flex flex-col">
-          <header className="h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-6">
-            <SidebarTrigger className="mr-4" />
+        <main className="flex-1 flex flex-col min-w-0">
+          <header className="h-14 md:h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-4 md:px-6 sticky top-0 z-10">
+            <SidebarTrigger className="mr-2 md:mr-4" />
             <div className="flex items-center space-x-2">
-              <Users className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">Clientes</h2>
+              <Users className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              <h2 className="text-base md:text-lg font-semibold text-foreground truncate">Clientes</h2>
             </div>
           </header>
 
-          <div className="flex-1 p-6 space-y-6 overflow-auto">
-            <div className="flex justify-between items-center">
+          <div className="flex-1 p-3 md:p-6 space-y-4 md:space-y-6 overflow-auto">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-foreground mb-2">Gerenciar Clientes</h1>
-                <p className="text-muted-foreground">Visualize e gerencie todos os seus clientes</p>
+                <h1 className="text-xl md:text-2xl font-bold text-foreground mb-1 md:mb-2">Gerenciar Clientes</h1>
+                <p className="text-sm md:text-base text-muted-foreground">Visualize e gerencie todos os seus clientes</p>
               </div>
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg">
+                  <Button className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg w-full sm:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Novo Cliente
                   </Button>
@@ -453,8 +453,8 @@ const Clientes = () => {
             </div>
 
             <Card className="bg-gradient-card border-0 shadow-md">
-              <CardHeader>
-                <div className="flex items-center space-x-4">
+              <CardHeader className="p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                     <Input 
@@ -462,7 +462,7 @@ const Clientes = () => {
                       className="pl-10 bg-background/50 border-border/50 focus:border-primary font-medium"
                     />
                   </div>
-                  <Button variant="outline" className="bg-gradient-card">
+                  <Button variant="outline" className="bg-gradient-card w-full sm:w-auto">
                     Filtros
                   </Button>
                 </div>
@@ -489,65 +489,68 @@ const Clientes = () => {
               ) : (
                 clients.map((client) => (
                   <Card key={client.id} className="bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
-                            <Users className="w-6 h-6 text-primary-foreground" />
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div className="flex items-center space-x-3 md:space-x-4 min-w-0 flex-1">
+                          <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-primary rounded-full flex items-center justify-center flex-shrink-0">
+                            <Users className="w-5 h-5 md:w-6 md:h-6 text-primary-foreground" />
                           </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-foreground">{client.name}</h3>
-                            <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-base md:text-lg font-semibold text-foreground truncate">{client.name}</h3>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-xs md:text-sm text-muted-foreground mt-1 gap-1 sm:gap-0">
                               <div className="flex items-center">
-                                <Phone className="w-4 h-4 mr-1" />
-                                {client.phone}
+                                <Phone className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
+                                <span className="truncate">{client.phone}</span>
                               </div>
-                              <div className="flex items-center">
-                                <Mail className="w-4 h-4 mr-1" />
-                                {client.email}
-                              </div>
+                              {client.email && (
+                                <div className="flex items-center">
+                                  <Mail className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
+                                  <span className="truncate">{client.email}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
                         
-                        <div className="text-right">
-                          <div className="text-sm text-muted-foreground">Última visita</div>
-                          <div className="font-semibold text-foreground">{client.lastVisit}</div>
-                          <div className="text-sm text-success font-medium mt-1">{client.totalSpent}</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {getPackageProgress(client.id).length > 0 ? (
-                              <div className="flex flex-wrap gap-1 justify-end">
-                                {getPackageProgress(client.id).map((pkg, index) => (
-                                  <Badge 
-                                    key={index} 
-                                    variant="default"
-                                    className="text-xs"
-                                  >
-                                    {pkg.name}: {pkg.completed}/{pkg.total}
-                                  </Badge>
-                                ))}
-                              </div>
-                            ) : (
-                              <span>Nenhum pacote ativo</span>
-                            )}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between lg:justify-end gap-4">
+                          <div className="text-left sm:text-right">
+                            <div className="text-xs md:text-sm text-muted-foreground">Última visita</div>
+                            <div className="font-semibold text-foreground text-sm md:text-base">{client.lastVisit}</div>
+                            <div className="text-xs md:text-sm text-success font-medium mt-1">{client.totalSpent}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {getPackageProgress(client.id).length > 0 ? (
+                                <div className="flex flex-wrap gap-1 justify-start sm:justify-end">
+                                  {getPackageProgress(client.id).map((pkg, index) => (
+                                    <Badge 
+                                      key={index} 
+                                      variant="default"
+                                      className="text-xs"
+                                    >
+                                      {pkg.name}: {pkg.completed}/{pkg.total}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span>Nenhum pacote ativo</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="bg-gradient-card"
-                            onClick={() => handleEditClient(client)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Editar
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="bg-gradient-card text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteClient(client)}
+                          
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="bg-gradient-card w-full sm:w-auto"
+                              onClick={() => handleEditClient(client)}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Editar
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="bg-gradient-card text-destructive hover:text-destructive w-full sm:w-auto"
+                              onClick={() => handleDeleteClient(client)}
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
                             Excluir

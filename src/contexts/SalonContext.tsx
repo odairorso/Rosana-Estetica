@@ -103,7 +103,20 @@ const fetchClients = async (): Promise<Client[]> => {
 };
 
 const addClient = async (client: Omit<Client, 'id'>): Promise<void> => {
-  const { error } = await supabase.from('clients').insert([client]);
+  // Incluir todas as colunas agora que foram criadas no Supabase
+  const allowedFields = {
+    name: client.name,
+    phone: client.phone,
+    email: client.email,
+    rua: client.rua,
+    numero: client.numero,
+    bairro: client.bairro,
+    cidade: client.cidade,
+    estado: client.estado,
+    cep: client.cep,
+  };
+  
+  const { error } = await supabase.from('clients').insert([allowedFields]);
   if (error) throw new Error(error.message);
 };
 
@@ -169,9 +182,23 @@ export function SalonProvider({ children }: { children: ReactNode }) {
 
   const updateClientMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number; updates: Partial<Client> }) => {
+      // Incluir todas as colunas agora que foram criadas no Supabase
+      const allowedUpdates: Partial<Client> = {};
+      
+      // Incluir todos os campos disponíveis na tabela
+      if (updates.name !== undefined) allowedUpdates.name = updates.name;
+      if (updates.phone !== undefined) allowedUpdates.phone = updates.phone;
+      if (updates.email !== undefined) allowedUpdates.email = updates.email;
+      if (updates.rua !== undefined) allowedUpdates.rua = updates.rua;
+      if (updates.numero !== undefined) allowedUpdates.numero = updates.numero;
+      if (updates.bairro !== undefined) allowedUpdates.bairro = updates.bairro;
+      if (updates.cidade !== undefined) allowedUpdates.cidade = updates.cidade;
+      if (updates.estado !== undefined) allowedUpdates.estado = updates.estado;
+      if (updates.cep !== undefined) allowedUpdates.cep = updates.cep;
+      
       const { error } = await supabase
         .from('clients')
-        .update(updates)
+        .update(allowedUpdates)
         .eq('id', id);
       if (error) throw new Error(error.message);
     },

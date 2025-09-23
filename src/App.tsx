@@ -22,8 +22,10 @@ const App = () => (
     <ThemeProvider
       attribute="class"
       defaultTheme="light"
-      enableSystem
-      disableTransitionOnChange
+      enableSystem={false}
+      disableTransitionOnChange={false}
+      storageKey="salon-theme"
+      forcedTheme={undefined}
     >
       <SalonProvider>
         <TooltipProvider>

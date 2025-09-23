@@ -10,16 +10,16 @@ const Financeiro = () => {
       <div className="min-h-screen flex w-full bg-background">
         <SalonSidebar />
         
-        <main className="flex-1 flex flex-col">
-          <header className="h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-6">
-            <SidebarTrigger className="mr-4" />
+        <main className="flex-1 flex flex-col min-w-0">
+          <header className="h-14 md:h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-4 md:px-6 sticky top-0 z-10">
+            <SidebarTrigger className="mr-2 md:mr-4" />
             <div className="flex items-center space-x-2">
-              <DollarSign className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold text-foreground">Financeiro</h2>
+              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              <h2 className="text-base md:text-lg font-semibold text-foreground truncate">Financeiro</h2>
             </div>
           </header>
 
-          <div className="flex-1 p-6 space-y-6 overflow-auto">
+          <div className="flex-1 p-3 md:p-6 space-y-4 md:space-y-6 overflow-auto">
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-2xl font-bold text-foreground mb-2">Financeiro</h1>
