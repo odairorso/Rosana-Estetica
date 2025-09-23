@@ -8,6 +8,13 @@ export interface Client {
   name: string;
   phone: string;
   email: string;
+  cpf?: string;
+  rua?: string;
+  numero?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
   lastVisit?: string;
   totalSpent?: string;
   packages?: number;
@@ -51,13 +58,27 @@ export interface Appointment {
   type: 'procedimento' | 'pacote' | 'produto';
 }
 
+export interface Procedure {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  duration_minutes: number;
+  category: string;
+  active: boolean;
+  created_at: string;
+}
+
 interface SalonContextType {
   clients: Client[];
   sales: Sale[];
   appointments: Appointment[];
+  procedures: Procedure[];
   pendingProcedures: PendingAppointment[];
   activPackages: PendingAppointment[];
   addClient: (client: Omit<Client, 'id'>) => Promise<void>;
+  updateClient: (id: number, client: Partial<Client>) => Promise<void>;
+  deleteClient: (id: number) => Promise<void>;
   addSale: (sale: Omit<Sale, 'id'>) => void;
   editSale: (id: number, sale: Partial<Sale>) => void;
   deleteSale: (id: number) => void;
@@ -69,6 +90,7 @@ interface SalonContextType {
   isLoadingClients: boolean;
   isLoadingSales: boolean;
   isLoadingAppointments: boolean;
+  isLoadingProcedures: boolean;
 }
 
 const SalonContext = createContext<SalonContextType | undefined>(undefined);
@@ -107,6 +129,12 @@ const fetchAppointments = async (): Promise<Appointment[]> => {
   })) || [];
 };
 
+const fetchProcedures = async (): Promise<Procedure[]> => {
+  const { data, error } = await supabase.from('procedures').select('*').eq('active', true);
+  if (error) throw new Error(error.message);
+  return data || [];
+};
+
 export function SalonProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
@@ -126,9 +154,37 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     queryFn: fetchAppointments,
   });
 
+  const { data: procedures = [], isLoading: isLoadingProcedures } = useQuery<Procedure[]>({
+    queryKey: ['procedures'],
+    queryFn: fetchProcedures,
+  });
+
   // Mutations
   const addClientMutation = useMutation({
     mutationFn: addClient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
+  const updateClientMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<Client> }) => {
+      const { error } = await supabase
+        .from('clients')
+        .update(updates)
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
+  const deleteClientMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from('clients').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
     },
@@ -285,12 +341,29 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     clients,
     sales,
     appointments,
+    procedures,
     pendingProcedures,
     activPackages,
     addSale: (sale) => addSaleMutation.mutate(sale),
     addClient: async (client) => {
       return new Promise((resolve, reject) => {
         addClientMutation.mutate(client, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    updateClient: async (id, updates) => {
+      return new Promise((resolve, reject) => {
+        updateClientMutation.mutate({ id, updates }, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    deleteClient: async (id) => {
+      return new Promise((resolve, reject) => {
+        deleteClientMutation.mutate(id, {
           onSuccess: () => resolve(),
           onError: (error) => reject(error),
         });
@@ -314,6 +387,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     isLoadingClients,
     isLoadingSales,
     isLoadingAppointments,
+    isLoadingProcedures,
   };
 
   return (

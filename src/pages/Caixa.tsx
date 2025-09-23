@@ -52,13 +52,31 @@ const Caixa = () => {
 
   const formatSafeDate = (dateString: string) => {
     try {
-      if (!dateString || new Date(dateString).toString() === 'Invalid Date') {
+      if (!dateString) {
         return "Data a ser definida";
       }
+      
+      // Se a data está no formato dd/mm/yyyy, retorna como está
+      if (dateString.includes('/')) {
+        return dateString;
+      }
+      
+      // Processar datas ISO (formato: 2024-01-15T10:30:00.000Z ou 2024-01-15)
       const date = new Date(dateString);
-      return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+      
+      if (isNaN(date.getTime())) {
+        return "Data a ser definida";
+      }
+      
+      // Se a data ISO inclui hora (tem 'T'), mostrar data e hora
+      if (dateString.includes('T')) {
+        return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+      } else {
+        // Se é apenas data (yyyy-mm-dd), mostrar apenas a data
+        return format(date, "dd/MM/yyyy", { locale: ptBR });
+      }
     } catch (error) {
-      return "Data inválida";
+      return "Data a ser definida";
     }
   };
 

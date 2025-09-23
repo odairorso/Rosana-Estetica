@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar, Clock } from "lucide-react";
+import { useSalon } from "@/contexts/SalonContext";
 
 interface ScheduleAppointmentModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export const ScheduleAppointmentModal = ({
   isPackage = false,
   clientName
 }: ScheduleAppointmentModalProps) => {
+  const { appointments } = useSalon();
   // Função para converter data de yyyy-mm-dd para dd/mm/yyyy
   const formatDateForDisplay = (dateString: string) => {
     if (!dateString) return '';
@@ -122,7 +124,15 @@ export const ScheduleAppointmentModal = ({
 
   const getNextSession = () => {
     if (isPackage && sale) {
-      return (sale.used_sessions || 0) + 1;
+      // Contar agendamentos já feitos para este pacote
+      const scheduledAppointments = appointments.filter(appointment => 
+        appointment.sale_id === sale.id && 
+        appointment.type === 'pacote' &&
+        (appointment.status === 'confirmado' || appointment.status === 'concluido')
+      );
+      
+      // A próxima sessão é baseada no número de agendamentos já feitos + 1
+      return scheduledAppointments.length + 1;
     }
     return null;
   };

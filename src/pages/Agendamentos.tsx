@@ -131,9 +131,6 @@ export default function Agendamentos() {
   const getNextSessionNumber = (sale: any) => {
     if (sale.type !== 'pacote') return null;
     
-    // Sessões já confirmadas (concluídas)
-    const confirmedSessions = sale.used_sessions || 0;
-    
     // Contar agendamentos confirmados para este pacote
     const scheduledAppointments = appointments.filter(appointment => 
       appointment.sale_id === sale.id && 
@@ -141,19 +138,13 @@ export default function Agendamentos() {
       (appointment.status === 'confirmado' || appointment.status === 'concluido')
     );
     
-    console.log(`Debug - Pacote ${sale.item} (ID: ${sale.id}):`);
-    console.log(`- Sessões confirmadas (used_sessions): ${confirmedSessions}`);
-    console.log(`- Agendamentos encontrados:`, scheduledAppointments);
-    console.log(`- Total de agendamentos: ${scheduledAppointments.length}`);
+    // A próxima sessão é o número de agendamentos já feitos + 1
+    // Mas não pode exceder o total de sessões do pacote
+    const nextSession = scheduledAppointments.length + 1;
+    const totalSessions = sale.sessions || 1;
     
-    // A próxima sessão é a soma de:
-    // 1. Sessões já concluídas (used_sessions)
-    // 2. Agendamentos confirmados/concluídos + 1
-    const nextSession = confirmedSessions + scheduledAppointments.length + 1;
-    
-    console.log(`- Próxima sessão calculada: ${nextSession}`);
-    
-    return nextSession;
+    // Se já atingiu o máximo de sessões, retorna o total (não +1)
+    return Math.min(nextSession, totalSessions);
   };
 
   const confirmAttendance = async (appointmentId: string) => {
@@ -217,8 +208,31 @@ export default function Agendamentos() {
     }
   };
 
-  // Mostrar TODAS as vendas do caixa nos agendamentos
-  const allSales = sales;
+  // Filtrar vendas que ainda não foram agendadas ou que não têm agendamentos ativos
+  const allSales = sales.filter(sale => {
+    // Para procedimentos: verificar se não há agendamento ativo (confirmado ou concluído)
+    if (sale.type === 'procedimento') {
+      const hasActiveAppointment = appointments.some(appointment => 
+        appointment.sale_id === sale.id && 
+        (appointment.status === 'confirmado' || appointment.status === 'concluido')
+      );
+      return !hasActiveAppointment;
+    }
+    
+    // Para pacotes: verificar se ainda há sessões para agendar
+    if (sale.type === 'pacote') {
+      const scheduledSessions = appointments.filter(appointment => 
+        appointment.sale_id === sale.id && 
+        appointment.type === 'pacote' &&
+        (appointment.status === 'confirmado' || appointment.status === 'concluido')
+      ).length;
+      
+      const totalSessions = sale.sessions || 1;
+      return scheduledSessions < totalSessions;
+    }
+    
+    return true;
+  });
 
   if (isLoadingAppointments || isLoadingClients || isLoadingSales) {
     return (
@@ -262,108 +276,118 @@ export default function Agendamentos() {
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center">
                   <Calendar className="w-5 h-5 mr-2" />
-                  Agendamentos Recentes
+                  Agendamentos
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {appointments.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">Nenhum agendamento encontrado</p>
-                    <p className="text-sm text-muted-foreground">Os agendamentos aparecerão aqui quando forem criados</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {appointments.slice(0, 10).map((appointment) => (
-                      <div key={appointment.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                            <User className="w-6 h-6 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">{getClientName(appointment.client_id)}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {appointment.service}
-                              {appointment.type === 'pacote' && appointment.sale_id && (() => {
-                                const sale = sales.find(s => s.id === appointment.sale_id);
-                                if (sale) {
-                                  // Sessões já concluídas (used_sessions)
-                                  const confirmedSessions = sale.used_sessions || 0;
-                                  
-                                  // Buscar TODOS os agendamentos deste pacote e ordená-los por data/hora
-                                  const allPackageAppointments = appointments
-                                    .filter(appt => 
-                                      appt.sale_id === sale.id && 
-                                      appt.type === 'pacote' &&
-                                      (appt.status === 'confirmado' || appt.status === 'concluido')
-                                    )
-                                    .sort((a, b) => {
-                                      // Ordenar por data e depois por hora
-                                      const dateA = new Date(`${a.date} ${a.time}`);
-                                      const dateB = new Date(`${b.date} ${b.time}`);
-                                      return dateA.getTime() - dateB.getTime();
-                                    });
-                                  
-                                  // Encontrar a posição do agendamento atual na lista ordenada
-                                  const appointmentIndex = allPackageAppointments.findIndex(appt => appt.id === appointment.id);
-                                  
-                                  // A sessão atual é: sessões concluídas + posição na lista (começando em 1)
-                                  const currentSession = confirmedSessions + (appointmentIndex + 1);
-                                  const totalSessions = sale.sessions || 1;
-                                  return ` - Sessão ${currentSession}/${totalSessions}`;
-                                }
-                                return '';
-                              })()}
-                            </p>
-                            <div className="flex items-center space-x-2 mt-1">
-                              <Badge variant="outline" className={getStatusColor(appointment.status)}>
-                                {getStatusText(appointment.status)}
-                              </Badge>
-                              <Badge variant="outline" className={getTypeColor(appointment.type)}>
-                                {getTypeText(appointment.type)}
-                              </Badge>
+                {(() => {
+                  // Filtrar agendamentos que não estão concluídos
+                  const activeAppointments = appointments.filter(appointment => 
+                    appointment.status !== 'concluido'
+                  );
+                  
+                  return activeAppointments.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">Nenhum agendamento ativo encontrado</p>
+                      <p className="text-sm text-muted-foreground">Os agendamentos aparecerão aqui quando forem criados</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {activeAppointments.slice(0, 10).map((appointment) => (
+                        <div key={appointment.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                              <User className="w-6 h-6 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">{getClientName(appointment.client_id)}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {appointment.service}
+                                {appointment.type === 'pacote' && appointment.sale_id && (() => {
+                                  const sale = sales.find(s => s.id === appointment.sale_id);
+                                  if (sale) {
+                                    // Sessões já concluídas (used_sessions)
+                                    const confirmedSessions = sale.used_sessions || 0;
+                                    
+                                    // Buscar todos os agendamentos deste pacote (confirmados e concluídos) e ordená-los por data/hora
+                                    const allPackageAppointments = appointments
+                                      .filter(appt => 
+                                        appt.sale_id === sale.id && 
+                                        appt.type === 'pacote' &&
+                                        (appt.status === 'confirmado' || appt.status === 'concluido')
+                                      )
+                                      .sort((a, b) => {
+                                        // Ordenar por data e depois por hora
+                                        const dateA = new Date(`${a.date} ${a.time}`);
+                                        const dateB = new Date(`${b.date} ${b.time}`);
+                                        return dateA.getTime() - dateB.getTime();
+                                      });
+                                    
+                                    // Encontrar a posição do agendamento atual na lista ordenada
+                                    const appointmentIndex = allPackageAppointments.findIndex(appt => appt.id === appointment.id);
+                                    
+                                    // A sessão atual é a posição na lista ordenada (começando em 1)
+                                    const currentSession = appointmentIndex + 1;
+                                    const totalSessions = sale.sessions || 1;
+                                    
+                                    // Garantir que não exceda o total de sessões
+                                    const displaySession = Math.min(currentSession, totalSessions);
+                                    return ` - Sessão ${displaySession}/${totalSessions}`;
+                                  }
+                                  return '';
+                                })()}
+                              </p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <Badge variant="outline" className={getStatusColor(appointment.status)}>
+                                  {getStatusText(appointment.status)}
+                                </Badge>
+                                <Badge variant="outline" className={getTypeColor(appointment.type)}>
+                                  {getTypeText(appointment.type)}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-foreground">{formatSafeDate(appointment.date)}</p>
-                            <p className="text-sm text-muted-foreground">{appointment.time}</p>
-                            <p className="text-sm text-muted-foreground">R$ {parseFloat(appointment.price).toFixed(2)}</p>
-                          </div>
-                          <div className="flex space-x-2">
-                            {appointment.status === 'confirmado' && (
+                          <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-foreground">{formatSafeDate(appointment.date)}</p>
+                              <p className="text-sm text-muted-foreground">{appointment.time}</p>
+                              <p className="text-sm text-muted-foreground">R$ {parseFloat(appointment.price).toFixed(2)}</p>
+                            </div>
+                            <div className="flex space-x-2">
+                              {appointment.status === 'confirmado' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="text-green-600 border-green-600 hover:bg-green-50"
+                                  onClick={() => confirmAttendance(appointment.id)}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Confirmar
+                                </Button>
+                              )}
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                className="text-green-600 border-green-600 hover:bg-green-50"
-                                onClick={() => confirmAttendance(appointment.id)}
+                                onClick={() => editAppointment(appointment)}
                               >
-                                <CheckCircle className="w-4 h-4 mr-1" />
-                                Confirmar
+                                <Edit className="w-4 h-4" />
                               </Button>
-                            )}
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => editAppointment(appointment)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="text-red-600 border-red-600 hover:bg-red-50"
-                              onClick={() => deleteAppointmentHandler(appointment.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="text-red-600 border-red-600 hover:bg-red-50"
+                                onClick={() => deleteAppointmentHandler(appointment.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -419,10 +443,17 @@ export default function Agendamentos() {
                       <h4 className="font-medium text-foreground mb-3">Pacotes</h4>
                       {allSales.filter(sale => {
                         if (sale.type !== 'pacote') return false;
-                        const nextSession = getNextSessionNumber(sale);
+                        
+                        // Contar agendamentos confirmados para este pacote
+                        const scheduledAppointments = appointments.filter(appointment => 
+                          appointment.sale_id === sale.id && 
+                          appointment.type === 'pacote' &&
+                          (appointment.status === 'confirmado' || appointment.status === 'concluido')
+                        );
+                        
                         const totalSessions = sale.sessions || 1;
                         // Só mostrar se ainda há sessões para agendar
-                        return nextSession <= totalSessions;
+                        return scheduledAppointments.length < totalSessions;
                       }).map((sale) => (
                         <div key={sale.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg mb-2">
                           <div>
