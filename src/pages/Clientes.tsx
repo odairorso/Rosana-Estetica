@@ -798,7 +798,7 @@ export default function Clientes() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Cliente desde</p>
-                      <p className="font-medium">{formatDate(selectedClient.createdAt)}</p>
+                      <p className="font-medium">{formatDate(selectedClient.created_at)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -887,7 +887,7 @@ export default function Clientes() {
                             <div>
                               <h4 className="font-medium">{item.service}</h4>
                               <p className="text-sm text-muted-foreground">
-                                {formatDate(item.date)} as {item.time}
+                                {item.date ? formatDate(item.date) : 'Data não disponível'} as {item.time}
                                 {item.packageInfo && (
                                   <span className="ml-2 text-primary">({item.packageInfo})</span>
                                 )}
