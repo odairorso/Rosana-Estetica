@@ -11,6 +11,7 @@ import { Users, Plus, Search, Edit, Trash2, Phone, Mail, History, Calendar } fro
 import { supabase } from '@/lib/supabaseClient';
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SalonSidebar } from "@/components/salon-sidebar";
+import { useSalon } from "@/contexts/SalonContext";
 
 // Funcao para formatar data
 const formatDate = (dateString: string) => {
@@ -68,6 +69,7 @@ interface Sale {
 }
 
 export default function Clientes() {
+  const { sales, appointments: allAppointments } = useSalon();
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -293,13 +295,13 @@ export default function Clientes() {
       name: client.name,
       phone: client.phone,
       email: client.email || '',
-      address: client.address || '',
-      number: client.number || '',
-      neighborhood: client.neighborhood || '',
-      city: client.city || '',
-      state: client.state || '',
-      zipCode: client.zipCode || '',
-      birthDate: client.birthDate || ''
+      address: client.rua || '',
+      number: client.numero || '',
+      neighborhood: client.bairro || '',
+      city: client.cidade || '',
+      state: client.estado || '',
+      zipCode: client.cep || '',
+      birthDate: client.cpf || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -350,8 +352,8 @@ export default function Clientes() {
       console.log('Agendamentos encontrados:', clientAppointments);
        
       // Armazenar nos estados para uso nas outras funções
-      setClientAppointments(clientAppointments);
-      setClientSales(clientSales);
+      setClientAppointments(clientAppointments as any);
+      setClientSales(clientSales as any);
     
       // Criar histórico dos agendamentos
       const appointmentHistory = clientAppointments.map(app => {
@@ -564,26 +566,28 @@ export default function Clientes() {
 
   // Funcao para calcular progresso dos pacotes (apenas ativos)
   const getPackageProgress = (clientId: string) => {
-    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]') as Appointment[];
-    const sales = JSON.parse(localStorage.getItem('sales') || '[]') as Sale[];
-    
+    const numericClientId = parseInt(clientId, 10);
+    if (isNaN(numericClientId)) return [];
+
     const clientPackages = sales.filter(sale => 
-      sale.client_id === clientId && 
-      sale.type === 'package'
+      sale.client_id === numericClientId && 
+      sale.type === 'pacote'
     );
     
     return clientPackages.map(pkg => {
-      const packageAppointments = appointments.filter(app => app.package_id === pkg.id);
-      const completedSessions = packageAppointments.filter(app => 
-        app.status === 'concluido' || app.status === 'completed'
-      ).length;
+      const packageAppointments = allAppointments.filter(app => 
+        app.sale_id === pkg.id &&
+        (app.status === 'concluido' || app.status === 'confirmado')
+      );
+      
+      const completedSessions = packageAppointments.length;
       
       return {
-        name: pkg.service,
+        name: pkg.item,
         total: pkg.sessions || 1,
         completed: completedSessions
       };
-    }).filter(pkg => pkg.completed < pkg.total); // Filtrar apenas pacotes nao finalizados
+    }).filter(pkg => pkg.completed < pkg.total);
   };
 
   useEffect(() => {
