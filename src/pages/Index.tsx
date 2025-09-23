@@ -7,7 +7,6 @@ import { MonthlyGoals } from "@/components/monthly-goals";
 import { QuickActions } from "@/components/quick-actions";
 import { AlertsSection } from "@/components/alerts-section";
 import { FinancialSummary } from "@/components/financial-summary";
-
 const Index = () => {
   return (
     <SidebarProvider>

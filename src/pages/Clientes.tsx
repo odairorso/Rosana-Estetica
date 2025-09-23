@@ -11,11 +11,16 @@ import { Users, Search, Plus, Phone, Mail, MapPin, History, Calendar, Package } 
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { formatDateBR } from "@/lib/utils";
+
+// Função para formatar data
+const formatDateBR = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('pt-BR');
+};
 
 const Clientes = () => {
   const { toast } = useToast();
-  const { clients, sales, appointments, addClient, isLoadingClients } = useSalon();
+  const { clients, addClient, isLoadingClients, appointments, sales } = useSalon();
   
   // Debug: log dos clientes
   console.log('Clientes carregados:', clients);
@@ -285,151 +290,153 @@ const Clientes = () => {
 
       {/* Modal de Histórico do Cliente */}
       <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <History className="w-5 h-5" />
-                Histórico de {selectedClient?.name}
-              </DialogTitle>
-            </DialogHeader>
-            
-            {selectedClient && (
-              <div className="space-y-6">
-                {/* Informações do Cliente */}
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5" />
+              Histórico de {selectedClient?.name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedClient && (
+            <div className="space-y-6">
+              {/* Informações do Cliente */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Informações do Cliente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Nome</p>
+                      <p className="font-medium">{selectedClient.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Telefone</p>
+                      <p className="font-medium">{selectedClient.phone}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">E-mail</p>
+                      <p className="font-medium">{selectedClient.email || 'Não informado'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Gasto</p>
+                      <p className="font-medium text-green-600">{selectedClient.totalSpent}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Pacotes Ativos */}
+              {getPackageProgress(selectedClient.id).length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Users className="w-5 h-5" />
-                      Informações do Cliente
+                      <Package className="w-5 h-5" />
+                      Pacotes Ativos
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Nome</p>
-                        <p className="font-medium">{selectedClient.name}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Telefone</p>
-                        <p className="font-medium">{selectedClient.phone}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">E-mail</p>
-                        <p className="font-medium">{selectedClient.email || 'Não informado'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Gasto</p>
-                        <p className="font-medium text-green-600">{selectedClient.totalSpent}</p>
-                      </div>
+                    <div className="space-y-3">
+                      {getPackageProgress(selectedClient.id).map((pkg, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <p className="font-medium">{pkg.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Sessões utilizadas: {pkg.used}/{pkg.total}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={pkg.used >= pkg.total ? "destructive" : "default"}>
+                              {pkg.used}/{pkg.total}
+                            </Badge>
+                            <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full" 
+                                style={{ width: `${(pkg.used / pkg.total) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
+              )}
 
-                {/* Pacotes Ativos */}
-                {getPackageProgress(selectedClient.id).length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Package className="w-5 h-5" />
-                        Pacotes Ativos
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {getPackageProgress(selectedClient.id).map((pkg, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                            <div>
-                              <p className="font-medium">{pkg.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Sessões utilizadas: {pkg.used}/{pkg.total}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={pkg.used >= pkg.total ? "destructive" : "default"}>
-                                {pkg.used}/{pkg.total}
+              {/* Histórico de Atividades */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Histórico de Atividades
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {getClientHistory(selectedClient.id).length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Descrição</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Valor</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {getClientHistory(selectedClient.id).map((item: any, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{formatDateBR(item.date)}</TableCell>
+                            <TableCell>
+                              <Badge variant={item.type === 'appointment' ? 'default' : 'secondary'}>
+                                {item.type === 'appointment' ? 'Agendamento' : 'Venda'}
                               </Badge>
-                              <div className="w-20 bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className="bg-blue-600 h-2 rounded-full" 
-                                  style={{ width: `${(pkg.used / pkg.total) * 100}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Histórico de Atividades */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5" />
-                      Histórico de Atividades
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {getClientHistory(selectedClient.id).length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Data</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Valor</TableHead>
+                            </TableCell>
+                            <TableCell>{item.description}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={
+                                  item.status === 'pago' ? 'default' :
+                                  item.status === 'pendente' ? 'secondary' :
+                                  item.status === 'confirmado' ? 'default' :
+                                  item.status === 'aguardando' ? 'secondary' :
+                                  item.status === 'cancelada' ? 'destructive' :
+                                  'default'
+                                }
+                              >
+                                {item.status === 'pago' ? 'Pago' :
+                                 item.status === 'pendente' ? 'Pendente' :
+                                 item.status === 'confirmado' ? 'Confirmado' :
+                                 item.status === 'aguardando' ? 'Aguardando' :
+                                 item.status === 'cancelada' ? 'Cancelada' :
+                                 item.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {item.price ? `R$ ${item.price}` : '-'}
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {getClientHistory(selectedClient.id).map((item, index) => (
-                            <TableRow key={index}>
-                              <TableCell>{formatDateBR(item.date)}</TableCell>
-                              <TableCell>
-                                <Badge variant={item.type === 'appointment' ? 'default' : 'secondary'}>
-                                  {item.type === 'appointment' ? 'Agendamento' : 'Venda'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{item.description}</TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant={
-                                    item.status === 'completed' || item.status === 'finalizada' ? 'default' :
-                                    item.status === 'cancelled' || item.status === 'cancelada' ? 'destructive' :
-                                    'secondary'
-                                  }
-                                >
-                                  {item.status === 'completed' ? 'Concluído' :
-                                   item.status === 'cancelled' ? 'Cancelado' :
-                                   item.status === 'finalizada' ? 'Finalizada' :
-                                   item.status === 'cancelada' ? 'Cancelada' :
-                                   item.status === 'pending' ? 'Pendente' :
-                                   item.status}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {item.price ? `R$ ${item.price}` : 
-                                 item.total ? `R$ ${item.total}` : '-'}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Nenhum histórico encontrado para este cliente</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </SidebarProvider>
-    );
-  };
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhum histórico encontrado para este cliente</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </SidebarProvider>
+  );
+};
 
 export default Clientes;

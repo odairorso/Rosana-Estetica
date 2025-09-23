@@ -1,59 +1,48 @@
-import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Trash2, Plus, Minus, ShoppingCart, Scissors, Package, ShoppingBag, Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabaseClient'
-import { toast } from 'sonner'
-import { formatDateBR } from '@/lib/utils'
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Minus, Trash2, ShoppingCart, Scissors, Package, ShoppingBag, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useSalon, Sale } from "@/contexts/SalonContext";
 
 interface CartItem {
-  id: string
-  name: string
-  price: number
-  quantity: number
-  type: 'procedimento' | 'pacote' | 'produto'
-  sessions?: number
+  id: string;
+  name: string;
+  type: "procedimento" | "pacote" | "produto";
+  price: number;
+  quantity: number;
+  sessions?: number;
 }
 
-interface Procedure {
-  id: number
-  name: string
-  price: string
-  duration_minutes: number
-  category: string
-  description: string
-}
+// Dados simulados para demonstração (mantidos por enquanto)
+const availableProcedures = [
+  { id: "1", name: "Limpeza de Pele", price: 120.00 },
+  { id: "2", name: "Hidratação Facial", price: 80.00 },
+  { id: "3", name: "Peeling Químico", price: 200.00 },
+  { id: "4", name: "Massagem Relaxante", price: 150.00 },
+  { id: "5", name: "Drenagem Linfática", price: 100.00 },
+];
 
-interface Package {
-  id: number
-  name: string
-  price: string
-  sessions: number
-  procedures: string[]
-  description: string
-}
+const availablePackages = [
+  { id: "1", name: "Pacote Relaxamento", price: 300.00, sessions: 5 },
+  { id: "2", name: "Pacote Facial Completo", price: 450.00, sessions: 3 },
+  { id: "3", name: "Pacote Corporal", price: 600.00, sessions: 8 },
+  { id: "4", name: "Pacote Anti-idade", price: 800.00, sessions: 6 },
+];
 
-interface Product {
-  id: number
-  name: string
-  unit_price: string
-  category: string
-  quantity: number
-  description: string
-}
-
-interface Client {
-  id: number
-  name: string
-  phone: string
-}
+const availableProducts = [
+  { id: "1", name: "Creme Hidratante", price: 45.00 },
+  { id: "2", name: "Protetor Solar", price: 60.00 },
+  { id: "3", name: "Sérum Vitamina C", price: 85.00 },
+  { id: "4", name: "Tônico Facial", price: 35.00 },
+  { id: "5", name: "Esfoliante Corporal", price: 55.00 },
+];
 
 interface ShoppingCartModalProps {
   isOpen: boolean;
@@ -61,229 +50,111 @@ interface ShoppingCartModalProps {
 }
 
 export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) => {
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null)
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [paymentMethod, setPaymentMethod] = useState('')
-  const [observations, setObservations] = useState('')
-  const [activeTab, setActiveTab] = useState('procedimento')
-  const [selectedItemId, setSelectedItemId] = useState('')
-  const [quantity, setQuantity] = useState(1)
-  const [price, setPrice] = useState('')
+  const { toast } = useToast();
+  const { clients, addSale, isLoadingClients } = useSalon();
   
-  // Estados para dados do banco
-  const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isLoadingClients, setIsLoadingClients] = useState(false);
-
-  // Carregar dados do banco quando o modal abrir
-  useEffect(() => {
-    if (isOpen) {
-      loadData();
-    }
-  }, [isOpen]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // Carregar procedimentos
-      const { data: proceduresData, error: proceduresError } = await supabase
-        .from('procedures')
-        .select('*')
-        .eq('active', true);
-      
-      if (proceduresError) throw proceduresError;
-      setProcedures(proceduresData || []);
-
-      // Carregar pacotes
-      const { data: packagesData, error: packagesError } = await supabase
-        .from('packages')
-        .select('*')
-        .eq('active', true);
-      
-      if (packagesError) throw packagesError;
-      setPackages(packagesData || []);
-
-      // Carregar produtos
-      const { data: productsData, error: productsError } = await supabase
-        .from('inventory')
-        .select('*')
-        .eq('active', true);
-      
-      if (productsError) throw productsError;
-      setProducts(productsData || []);
-
-      // Carregar clientes
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('clients')
-        .select('id, name, phone')
-        .eq('active', true);
-      
-      if (clientsError) throw clientsError;
-      setClients(clientsData || []);
-
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      toast.error('Erro ao carregar dados');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [saleStatus, setSaleStatus] = useState<"pago" | "pendente">("pago");
+  const [observations, setObservations] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"procedimento" | "pacote" | "produto">("procedimento");
+  const [selectedItemId, setSelectedItemId] = useState<string>("");
+  const [quantity, setQuantity] = useState<number>(1);
+  const [price, setPrice] = useState<string>("");
 
   const getCurrentItems = () => {
     switch (activeTab) {
-      case "procedimento":
-        return procedures.map(p => ({
-          id: p.id.toString(),
-          name: p.name,
-          price: parseFloat(p.price),
-          category: p.category,
-          description: p.description
-        }));
-      case "pacote":
-        return packages.map(p => ({
-          id: p.id.toString(),
-          name: p.name,
-          price: parseFloat(p.price),
-          sessions: p.sessions,
-          description: p.description
-        }));
-      case "produto":
-        return products.map(p => ({
-          id: p.id.toString(),
-          name: p.name,
-          price: parseFloat(p.unit_price),
-          category: p.category,
-          stock: p.quantity,
-          description: p.description
-        }));
+      case "procedimento": return availableProcedures;
+      case "pacote": return availablePackages;
+      case "produto": return availableProducts;
       default: return [];
     }
   };
 
   const addToCart = () => {
-    if (!selectedItemId || !price) {
-      toast.error("Selecione um item e confirme o preço")
-      return
-    }
-
-    const currentItems = getCurrentItems()
-    const item = currentItems.find(i => i.id === selectedItemId)
+    const currentItems = getCurrentItems();
+    const selectedItem = currentItems.find(item => item.id === selectedItemId);
     
-    if (!item) return
-
-    const itemPrice = parseFloat(price)
-    const existingItem = cart.find(cartItem => cartItem.id === selectedItemId && cartItem.type === activeTab)
-
-    if (existingItem) {
-      setCart(cart.map(cartItem =>
-        cartItem.id === selectedItemId && cartItem.type === activeTab
-          ? { ...cartItem, quantity: cartItem.quantity + quantity }
-          : cartItem
-      ))
-    } else {
-       const newItem: CartItem = {
-         id: selectedItemId,
-         name: item.name,
-         price: itemPrice,
-         quantity,
-         type: activeTab as 'procedimento' | 'pacote' | 'produto',
-         ...(activeTab === 'pacote' && 'sessions' in item && { sessions: item.sessions })
-       }
-       setCart([...cart, newItem])
-     }
-
-    // Reset form
-    setSelectedItemId('')
-    setQuantity(1)
-    setPrice('')
-    toast.success(`${item.name} adicionado ao carrinho`)
-  }
-
-  const updateQuantity = (id: string, change: number) => {
-    setCart(cart.map(item => {
-      if (item.id === id) {
-        const newQuantity = item.quantity + change
-        return newQuantity > 0 ? { ...item, quantity: newQuantity } : item
-      }
-      return item
-    }))
-  }
-
-  const removeFromCart = (id: string) => {
-    setCart(cart.filter(item => item.id !== id))
-  }
-
-  const calculateTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0)
-  }
-
-  const resetForm = () => {
-    setSelectedClientId(null)
-    setCart([])
-    setPaymentMethod('')
-    setObservations('')
-    setActiveTab('procedimento')
-    setSelectedItemId('')
-    setQuantity(1)
-    setPrice('')
-  }
-
-  const handleFinalizeSale = async () => {
-    if (!selectedClientId || cart.length === 0 || !paymentMethod) {
-      toast.error('Preencha todos os campos obrigatórios');
+    if (!selectedItem || !price) {
+      toast({ title: "Erro", description: "Selecione um item e confirme o preço", variant: "destructive" });
       return;
     }
 
-    try {
-      // Criar uma venda para cada item do carrinho
-      for (const item of cart) {
-        const saleData: any = {
-          client_id: selectedClientId,
-          item: item.name,
-          type: item.type,
-          price: item.price * item.quantity,
-          date: formatDateBR(new Date()),
-          status: 'pago'
-        };
+    const item: CartItem = {
+      id: Date.now().toString(),
+      name: selectedItem.name,
+      type: activeTab,
+      price: parseFloat(price),
+      quantity: quantity,
+      ...(activeTab === "pacote" && 'sessions' in selectedItem && { sessions: selectedItem.sessions })
+    };
 
-        // Se for um pacote, incluir campos de sessões
-        if (item.type === 'pacote' && item.sessions) {
-          saleData.sessions = item.sessions;
-          saleData.used_sessions = 0; // Iniciar com 0 sessões usadas
-        }
+    setCart(prev => [...prev, item]);
+    setSelectedItemId("");
+    setPrice("");
+    setQuantity(1);
+  };
 
-        const { error } = await supabase
-          .from('sales')
-          .insert(saleData);
+  const updateQuantity = (id: string, change: number) => {
+    setCart(prev => prev.map(item => 
+      item.id === id ? { ...item, quantity: Math.max(1, item.quantity + change) } : item
+    ));
+  };
 
-        if (error) throw error;
+  const removeFromCart = (id: string) => {
+    setCart(prev => prev.filter(item => item.id !== id));
+  };
 
-        // Se for um produto, atualizar o estoque
-        if (item.type === 'produto') {
-          const product = products.find(p => p.id.toString() === item.id);
-          if (product) {
-            const newQuantity = product.quantity - item.quantity;
-            const { error: updateError } = await supabase
-              .from('inventory')
-              .update({ quantity: newQuantity })
-              .eq('id', product.id);
-            
-            if (updateError) throw updateError;
-          }
-        }
-      }
+  const calculateTotal = () => {
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
 
-      toast.success('Venda finalizada com sucesso!');
-      resetForm();
-      // Recarregar dados para atualizar estoque
-      loadData();
-    } catch (error) {
-      console.error('Erro ao finalizar venda:', error);
-      toast.error('Erro ao finalizar venda');
+  const resetForm = () => {
+    setCart([]);
+    setSelectedClientId(null);
+    setPaymentMethod("");
+    setSaleStatus("pago");
+    setObservations("");
+    setActiveTab("procedimento");
+    setSelectedItemId("");
+    setQuantity(1);
+    setPrice("");
+    onClose();
+  }
+
+  const handleFinalizeSale = () => {
+    if (!selectedClientId || cart.length === 0 || !paymentMethod || !saleStatus) {
+      toast({
+        title: "Erro de Validação",
+        description: "Selecione um cliente, adicione itens ao carrinho, escolha uma forma de pagamento e o status da venda.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    // A lógica agora cria uma venda por item no carrinho, como antes,
+    // mas adaptado para a nova estrutura do Supabase.
+    cart.forEach(item => {
+      const sale: Omit<Sale, 'id'> = {
+        client_id: selectedClientId,
+        item: item.name,
+        type: item.type,
+        price: item.price.toString(),
+        date: new Date().toLocaleDateString('pt-BR'),
+        status: saleStatus,
+        sessions: item.sessions,
+        used_sessions: item.type === 'pacote' ? 0 : undefined,
+      };
+      addSale(sale);
+    });
+
+    toast({
+      title: "Venda Finalizada!",
+      description: "A venda foi registrada com sucesso.",
+    });
+
+    resetForm();
   };
 
   return (
@@ -296,33 +167,30 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
           </DialogTitle>
         </DialogHeader>
 
-        {loading ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="w-8 h-8 animate-spin" />
-            <span className="ml-2">Carregando dados...</span>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label>Cliente *</Label>
+            <Select 
+              value={selectedClientId?.toString() || ""}
+              onValueChange={(value) => setSelectedClientId(parseInt(value))}
+              disabled={isLoadingClients}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isLoadingClients ? "Carregando clientes..." : "Selecione um cliente"} />
+              </SelectTrigger>
+              <SelectContent>
+                {isLoadingClients && <div className="flex items-center justify-center p-2"><Loader2 className="w-4 h-4 animate-spin"/></div>}
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id.toString()}>
+                    {client.name} - {client.phone}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label>Cliente *</Label>
-              <Select 
-                value={selectedClientId?.toString() || ""}
-                onValueChange={(value) => setSelectedClientId(parseInt(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id.toString()}>
-                      {client.name} - {client.phone}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div className="border rounded-lg p-4 space-y-4">
+          {/* Restante do formulário permanece o mesmo */}
+          <div className="border rounded-lg p-4 space-y-4">
             <h3 className="font-semibold">Adicionar Itens ao Carrinho</h3>
             <div className="flex gap-2">
               <Button type="button" variant={activeTab === "procedimento" ? "default" : "outline"} onClick={() => { setActiveTab("procedimento"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><Scissors className="w-4 h-4" />Procedimento</Button>
@@ -391,18 +259,30 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Forma de Pagamento *</Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger><SelectValue placeholder="Selecione a forma de pagamento" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-                <SelectItem value="pix">PIX</SelectItem>
-                <SelectItem value="transferencia">Transferência</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Forma de Pagamento *</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger><SelectValue placeholder="Selecione a forma de pagamento" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="transferencia">Transferência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status da Venda *</Label>
+              <Select value={saleStatus} onValueChange={(value: "pago" | "pendente") => setSaleStatus(value)}>
+                <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pago">Pago</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -414,8 +294,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button onClick={handleFinalizeSale} className="bg-gradient-primary">Finalizar Venda</Button>
           </div>
-          </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );

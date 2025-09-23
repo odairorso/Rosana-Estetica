@@ -41,12 +41,12 @@ export interface PendingAppointment {
 
 export interface Appointment {
   id: number;
-  client: string;
-  clientId: number;
+  client?: string; // Para exibição, mas o ID é a fonte da verdade
+  client_id: number;
   service: string;
   time: string;
   date: string;
-  status: 'confirmado' | 'pendente';
+  status: 'confirmado' | 'pendente' | 'concluido' | 'faltou';
   price: string;
   type: 'procedimento' | 'pacote' | 'produto';
 }
@@ -57,13 +57,15 @@ interface SalonContextType {
   appointments: Appointment[];
   pendingProcedures: PendingAppointment[];
   activPackages: PendingAppointment[];
-  addClient: (client: Omit<Client, 'id'>) => void;
+  addClient: (client: Omit<Client, 'id'>) => Promise<void>;
   addSale: (sale: Omit<Sale, 'id'>) => void;
   editSale: (id: number, sale: Partial<Sale>) => void;
   deleteSale: (id: number) => void;
   addAppointment: (appointment: Omit<Appointment, 'id'>) => void;
   scheduleFromPending: (pendingId: number, time: string, date: string) => void;
   updatePackageSession: (packageId: number) => void;
+  updateAppointment: (id: number, updates: Partial<Appointment>) => void;
+  deleteAppointment: (id: number) => void;
   isLoadingClients: boolean;
   isLoadingSales: boolean;
   isLoadingAppointments: boolean;
@@ -74,75 +76,49 @@ const SalonContext = createContext<SalonContextType | undefined>(undefined);
 // Funções de API Supabase
 const fetchClients = async (): Promise<Client[]> => {
   const { data, error } = await supabase.from('clients').select('*');
-  if (error) {
-    console.error("Error fetching clients:", error);
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
   return data || [];
 };
 
-const fetchSales = async (): Promise<Sale[]> => {
-    const { data, error } = await supabase
-      .from('sales')
-      .select(`
-        *,
-        clients(name)
-      `);
-    
-    if (error) {
-      console.error("Error fetching sales:", error);
-      throw new Error(error.message);
-    }
+const addClient = async (client: Omit<Client, 'id'>): Promise<void> => {
+  const { error } = await supabase.from('clients').insert([client]);
+  if (error) throw new Error(error.message);
+};
 
-    // Mapear para a estrutura de Sale esperada no frontend
-    return data.map(sale => ({
-      ...sale,
-      price: String(sale.price), // Garantir que o preço seja string
-      client: sale.clients?.name || `Cliente ID: ${sale.client_id}`, // Nome real do cliente
-      sessions: sale.sessions || undefined,
-      used_sessions: sale.used_sessions || 0
-    })) || [];
+const fetchSales = async (): Promise<Sale[]> => {
+  const { data, error } = await supabase.from('sales').select('*, clients(name)');
+  if (error) throw new Error(error.message);
+  // Mapear para a estrutura de Sale esperada no frontend
+  return data.map(sale => ({
+    ...sale,
+    price: String(sale.price), // Garantir que o preço seja string
+    client: sale.clients?.name || 'Cliente desconhecido'
+  })) || [];
 };
 
 const fetchAppointments = async (): Promise<Appointment[]> => {
-  console.log("Attempting to fetch appointments...");
-  const { data, error } = await supabase
-    .from('appointments')
-    .select(`
-      *,
-      clients(name)
-    `);
-  
-  if (error) {
-    console.error("Error fetching appointments:", error);
-    throw new Error(error.message);
-  }
-
-  console.log("Appointments data fetched:", data);
-  console.log("Number of appointments:", data?.length || 0);
-
+  const { data, error } = await supabase.from('appointments').select('*, clients(name)');
+  if (error) throw new Error(error.message);
   // Mapear para a estrutura de Appointment esperada no frontend
-  const mappedAppointments = data?.map(appointment => ({
+  return data?.map(appointment => ({
     ...appointment,
     price: String(appointment.price), // Garantir que o preço seja string
-    client: appointment.clients?.name || `Cliente ID: ${appointment.client_id}`, // Nome real do cliente
-    clientId: appointment.client_id // Mapear o client_id para clientId
+    client: appointment.clients?.name || 'Cliente desconhecido'
   })) || [];
-  
-  console.log("Mapped appointments:", mappedAppointments);
-  return mappedAppointments;
 };
-
 
 export function SalonProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: clients = [], isLoading: isLoadingClients } = useQuery<Client[]>({ queryKey: ['clients'], queryFn: fetchClients });
+  const { data: clients = [], isLoading: isLoadingClients } = useQuery<Client[]>({
+    queryKey: ['clients'],
+    queryFn: fetchClients,
+  });
 
-  const { data: sales = [], isLoading: isLoadingSales } = useQuery<Sale[]>({ 
-    queryKey: ['sales'], 
-    queryFn: fetchSales 
+  const { data: sales = [], isLoading: isLoadingSales } = useQuery<Sale[]>({
+    queryKey: ['sales'],
+    queryFn: fetchSales,
   });
   
   const { data: appointments = [], isLoading: isLoadingAppointments } = useQuery<Appointment[]>({
@@ -150,15 +126,20 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     queryFn: fetchAppointments,
   });
 
-  // Mutações
+  // Mutations
+  const addClientMutation = useMutation({
+    mutationFn: addClient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
   const addSaleMutation = useMutation({
     mutationFn: async (newSale: Omit<Sale, 'id'>) => {
+      // Omitindo 'client' que é apenas para exibição
       const { client, ...saleData } = newSale;
       const { data, error } = await supabase.from('sales').insert([saleData]).select();
-      if (error) {
-        console.error("Error inserting sale:", error);
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
       return data;
     },
     onSuccess: () => {
@@ -166,49 +147,13 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Mutation para adicionar agendamento
   const addAppointmentMutation = useMutation({
     mutationFn: async (newAppointment: Omit<Appointment, 'id'>) => {
-      const { client, clientId, ...appointmentData } = newAppointment;
-      const dataToInsert = {
-        ...appointmentData,
-        client_id: clientId
-      };
-      console.log("Inserting appointment:", dataToInsert);
-      const { data, error } = await supabase.from('appointments').insert([dataToInsert]).select();
-      if (error) {
-        console.error("Error inserting appointment:", error);
-        throw new Error(error.message);
-      }
-      console.log("Appointment inserted successfully:", data);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    },
-  });
-
-  const scheduleFromPendingMutation = useMutation({
-    mutationFn: async ({ id, time, date }: { id: number; time: string; date: string }) => {
-      // Buscar a venda pendente
-      const sale = sales.find(s => s.id === id);
-      if (!sale) throw new Error('Venda não encontrada');
-
-      // Criar agendamento baseado na venda
-      const appointmentData = {
-        client_id: sale.client_id,
-        service: sale.item,
-        time,
-        date,
-        status: 'confirmado',
-        price: sale.price,
-        type: sale.type,
-      };
-
+      // Omitindo 'client' que é apenas para exibição
+      const { client, ...appointmentData } = newAppointment;
       const { data, error } = await supabase.from('appointments').insert([appointmentData]).select();
-      if (error) {
-        console.error("Error scheduling appointment:", error);
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
       return data;
     },
     onSuccess: () => {
@@ -216,44 +161,88 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  const updatePackageSessionMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const sale = sales.find(s => s.id === id);
-      if (!sale) throw new Error('Venda não encontrada');
+  // Mutation para editar venda
+  const editSaleMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<Sale> }) => {
+      // Omitindo 'client' que é apenas para exibição
+      const { client, ...saleData } = updates;
+      const { data, error } = await supabase
+        .from('sales')
+        .update(saleData)
+        .eq('id', id)
+        .select();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+    },
+  });
 
+  // Mutation para deletar venda
+  const deleteSaleMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from('sales').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+    },
+  });
+
+  // Mutation para atualizar agendamento
+  const updateAppointmentMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<Appointment> }) => {
+      const { data, error } = await supabase
+        .from('appointments')
+        .update(updates)
+        .eq('id', id)
+        .select();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+  });
+
+  // Mutation para deletar agendamento
+  const deleteAppointmentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from('appointments').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+  });
+
+  // Mutation para atualizar sessões de pacote
+  const updatePackageSessionMutation = useMutation({
+    mutationFn: async (saleId: number) => {
+      // Buscar a venda atual
+      const { data: sale, error: fetchError } = await supabase
+        .from('sales')
+        .select('*')
+        .eq('id', saleId)
+        .single();
+      
+      if (fetchError) throw new Error(fetchError.message);
+      
       const newUsedSessions = (sale.used_sessions || 0) + 1;
+      
+      // Atualizar as sessões usadas
       const { data, error } = await supabase
         .from('sales')
         .update({ used_sessions: newUsedSessions })
-        .eq('id', id)
+        .eq('id', saleId)
         .select();
-
-      if (error) {
-        console.error("Error updating package session:", error);
-        throw new Error(error.message);
-      }
+        
+      if (error) throw new Error(error.message);
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
-    },
-  });
-
-  const addClientMutation = useMutation({
-    mutationFn: async (client: Omit<Client, 'id' | 'created_at'>) => {
-      const { data, error } = await supabase
-        .from('clients')
-        .insert([client])
-        .select();
-
-      if (error) {
-        console.error("Error adding client:", error);
-        throw new Error(error.message);
-      }
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
     },
   });
 
@@ -280,6 +269,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
         if (sale.type === 'procedimento') {
           pending.push(appointment);
         } else if (sale.type === 'pacote') {
+          // Lógica para determinar status do pacote
           const isConcluido = appointment.usedSessions !== undefined && appointment.sessions !== undefined && appointment.usedSessions >= appointment.sessions;
           appointment.status = isConcluido ? 'concluido' : 'aguardando';
           packages.push(appointment);
@@ -290,22 +280,6 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     return { pendingProcedures: pending, activPackages: packages };
   }, [sales]);
 
-  // Filtrar vendas de pacotes e mapear para a estrutura esperada
-  const packages = useMemo(() => {
-    const packageSales = sales.filter(sale => sale.type === 'pacote');
-    
-    return packageSales.map(sale => ({
-      id: sale.id,
-      name: sale.item,
-      client: sale.client,
-      sessions: sale.sessions || 0,
-      usedSessions: sale.used_sessions || 0,
-      price: sale.price,
-      date: sale.date,
-      status: sale.status
-    }));
-  }, [sales]);
-
   const value: SalonContextType = {
     clients,
     sales,
@@ -313,13 +287,29 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     pendingProcedures,
     activPackages,
     addSale: (sale) => addSaleMutation.mutate(sale),
-    addAppointment: (appt) => addAppointmentMutation.mutate(appt),
-    scheduleFromPending: (id, time, date) => scheduleFromPendingMutation.mutate({ id, time, date }),
+    addClient: async (client) => {
+      return new Promise((resolve, reject) => {
+        addClientMutation.mutate(client, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    // Funções implementadas
+    editSale: (id, sale) => editSaleMutation.mutate({ id, updates: sale }),
+    deleteSale: (id) => deleteSaleMutation.mutate(id),
+    addAppointment: async (appt) => {
+      return new Promise((resolve, reject) => {
+        addAppointmentMutation.mutate(appt, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    scheduleFromPending: (id, time, date) => console.log('scheduleFromPending not implemented', id, time, date),
     updatePackageSession: (id) => updatePackageSessionMutation.mutate(id),
-    // Funções placeholder
-    addClient: (client) => addClientMutation.mutate(client),
-    editSale: (id, sale) => console.log('editSale not implemented', id, sale),
-    deleteSale: (id) => console.log('deleteSale not implemented', id),
+    updateAppointment: (id, updates) => updateAppointmentMutation.mutate({ id, updates }),
+    deleteAppointment: (id) => deleteAppointmentMutation.mutate(id),
     isLoadingClients,
     isLoadingSales,
     isLoadingAppointments,
