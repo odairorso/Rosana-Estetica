@@ -1,29 +1,38 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Calendar, Target, TrendingUp } from "lucide-react";
-
-const alerts = [
-  {
-    title: "Pacotes Vencendo",
-    message: "3 pacotes vencendo esta semana",
-    type: "warning",
-    icon: AlertCircle,
-  },
-  {
-    title: "Agenda",
-    message: "5 horários livres hoje",
-    type: "info",
-    icon: Calendar,
-  },
-  {
-    title: "Performance",
-    message: "Meta do dia já atingida!",
-    type: "success",
-    icon: Target,
-  },
-];
+import { AlertCircle, Calendar, Target } from "lucide-react";
+import { useSalon } from "@/contexts/SalonContext";
 
 export function AlertsSection() {
+  const { pendingProcedures } = useSalon();
+
+  const alerts = [];
+
+  // Alerta dinâmico para agendamentos pendentes
+  if (pendingProcedures.length > 0) {
+    alerts.push({
+      title: "Agendamentos Pendentes",
+      message: `${pendingProcedures.length} ${pendingProcedures.length === 1 ? 'procedimento aguarda' : 'procedimentos aguardam'} agendamento`,
+      type: "warning",
+      icon: Calendar,
+    });
+  }
+
+  // Alertas genéricos (podem ser dinamizados no futuro)
+  alerts.push({
+    title: "Agenda",
+    message: "Verifique sua disponibilidade para hoje",
+    type: "info",
+    icon: Calendar,
+  });
+
+  alerts.push({
+    title: "Performance",
+    message: "Acompanhe suas metas mensais",
+    type: "success",
+    icon: Target,
+  });
+
   return (
     <Card className="bg-gradient-card border-0 shadow-md">
       <CardHeader>
@@ -33,7 +42,7 @@ export function AlertsSection() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {alerts.map((alert, index) => (
+        {alerts.slice(0, 3).map((alert, index) => ( // Garante que no máximo 3 alertas sejam mostrados
           <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-secondary/20 border border-border/30">
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
               alert.type === 'warning' ? 'bg-warning text-warning-foreground' :
