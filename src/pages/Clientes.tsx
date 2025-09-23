@@ -1,272 +1,309 @@
-import { useState } from "react";
-import { useSalon } from "@/contexts/SalonContext";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { SalonSidebar } from "@/components/salon-sidebar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Users, Search, Plus, Phone, Mail, MapPin, History, Calendar, Package, Edit, Trash2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { toast } from '@/hooks/use-toast';
+import { Users, Plus, Search, Edit, Trash2, Phone, Mail, History, Calendar } from 'lucide-react';
 
-// Função para formatar data
-const formatDateBR = (dateString: string) => {
-  // Se já está no formato brasileiro (dd/mm/yyyy), retorna como está
-  if (dateString.includes('/') && dateString.split('/').length === 3) {
+// Funcao para formatar data
+const formatDate = (dateString: string) => {
+  // Se ja esta no formato brasileiro (dd/mm/yyyy), retorna como esta
+  if (dateString.includes('/')) {
     return dateString;
   }
-  // Caso contrário, converte de ISO para formato brasileiro
+  // Caso contrario, converte de ISO para formato brasileiro
   const date = new Date(dateString);
   return date.toLocaleDateString('pt-BR');
 };
 
-const Clientes = () => {
-  const { toast } = useToast();
-  const { clients, addClient, updateClient, deleteClient, isLoadingClients, appointments, sales } = useSalon();
-  
-  // Debug: log dos clientes
-  console.log('Clientes carregados:', clients);
-  console.log('Loading clientes:', isLoadingClients);
+interface Client {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  birthDate?: string;
+  lastVisit: string;
+  totalSpent: string;
+  createdAt: string;
+}
+
+interface Appointment {
+  id: string;
+  client_id: string;
+  service: string;
+  date: string;
+  time: string;
+  status: string;
+  price: number;
+  package_id?: string;
+}
+
+interface Sale {
+  id: string;
+  client_id: string;
+  service: string;
+  price: string;
+  sessions?: number;
+  date: string;
+  type: 'procedure' | 'package';
+}
+
+export default function Clientes() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [editingClient, setEditingClient] = useState<any>(null);
-  const [newClient, setNewClient] = useState({
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientHistory, setClientHistory] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
-    cpf: '',
-    rua: '',
-    numero: '',
-    bairro: '',
-    cidade: '',
-    estado: '',
-    cep: ''
+    address: '',
+    number: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    birthDate: ''
   });
 
-  const handleNewClient = async () => {
-    if (!newClient.name || !newClient.phone) {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim() || !formData.phone.trim()) {
       toast({
         title: "Erro",
-        description: "Nome e telefone são obrigatórios",
-        variant: "destructive",
+        description: "Nome e telefone sao obrigatorios",
+        variant: "destructive"
       });
       return;
     }
 
-    try {
-      await addClient(newClient);
-      setNewClient({ 
-        name: '', 
-        phone: '', 
-        email: '',
-        cpf: '',
-        rua: '',
-        numero: '',
-        bairro: '',
-        cidade: '',
-        estado: '',
-        cep: ''
-      });
-      setIsDialogOpen(false);
-      toast({
-        title: "Sucesso",
-        description: "Cliente cadastrado com sucesso!",
-      });
-    } catch (error) {
+    const newClient: Client = {
+      id: Date.now().toString(),
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      address: formData.address,
+      number: formData.number,
+      neighborhood: formData.neighborhood,
+      city: formData.city,
+      state: formData.state,
+      zipCode: formData.zipCode,
+      birthDate: formData.birthDate,
+      lastVisit: 'Nunca',
+      totalSpent: 'R$ 0,00',
+      createdAt: new Date().toISOString()
+    };
+
+    const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const updatedClients = [...existingClients, newClient];
+    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    setClients(updatedClients);
+
+    setFormData({
+      name: '',
+      phone: '',
+      email: '',
+      address: '',
+      number: '',
+      neighborhood: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      birthDate: ''
+    });
+
+    setIsDialogOpen(false);
+    toast({
+      title: "Sucesso",
+      description: "Cliente cadastrado com sucesso!"
+    });
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name.trim()) {
       toast({
         title: "Erro",
-        description: "Erro ao cadastrar cliente",
-        variant: "destructive",
+        description: "Nome e obrigatorio",
+        variant: "destructive"
       });
+      return;
     }
+
+    if (!selectedClient) return;
+
+    const updatedClient: Client = {
+      ...selectedClient,
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      address: formData.address,
+      number: formData.number,
+      neighborhood: formData.neighborhood,
+      city: formData.city,
+      state: formData.state,
+      zipCode: formData.zipCode,
+      birthDate: formData.birthDate
+    };
+
+    const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const updatedClients = existingClients.map((client: Client) => 
+      client.id === selectedClient.id ? updatedClient : client
+    );
+    
+    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    setClients(updatedClients);
+    setIsEditDialogOpen(false);
+    setSelectedClient(null);
+
+    toast({
+      title: "Sucesso",
+      description: "Cliente atualizado com sucesso!"
+    });
   };
 
-  const handleViewHistory = (client: any) => {
+  const handleDeleteClient = (client: Client) => {
+    const existingClients = JSON.parse(localStorage.getItem('clients') || '[]');
+    const updatedClients = existingClients.filter((c: Client) => c.id !== client.id);
+    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    setClients(updatedClients);
+
+    toast({
+      title: "Sucesso",
+      description: "Cliente excluido com sucesso!"
+    });
+  };
+
+  const handleEditClient = (client: Client) => {
     setSelectedClient(client);
-    setIsHistoryOpen(true);
-  };
-
-  const handleEditClient = (client: any) => {
-    setEditingClient({
-      id: client.id,
+    setFormData({
       name: client.name,
       phone: client.phone,
-      email: client.email,
-      cpf: client.cpf || '',
-      rua: client.rua || '',
-      numero: client.numero || '',
-      bairro: client.bairro || '',
-      cidade: client.cidade || '',
-      estado: client.estado || '',
-      cep: client.cep || ''
+      email: client.email || '',
+      address: client.address || '',
+      number: client.number || '',
+      neighborhood: client.neighborhood || '',
+      city: client.city || '',
+      state: client.state || '',
+      zipCode: client.zipCode || '',
+      birthDate: client.birthDate || ''
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleUpdateClient = async () => {
-    if (!editingClient || !editingClient.name || !editingClient.name.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome é obrigatório",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { id, ...updates } = editingClient;
-      await updateClient(id, updates);
-      setIsEditDialogOpen(false);
-      setEditingClient(null);
-      toast({
-        title: "Sucesso",
-        description: "Cliente atualizado com sucesso!",
-      });
-    } catch (error) {
-      console.error("Erro ao atualizar cliente:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar cliente",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteClient = (client: any) => {
+  // Funcao para buscar historico do cliente
+  const handleViewHistory = async (client: Client) => {
     setSelectedClient(client);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmDeleteClient = async () => {
-    if (!selectedClient) return;
-
-    try {
-      await deleteClient(selectedClient.id);
-      setIsDeleteDialogOpen(false);
-      setSelectedClient(null);
-      toast({
-        title: "Sucesso",
-        description: "Cliente excluído com sucesso!",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao excluir cliente",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Função para buscar histórico do cliente
-  const getClientHistory = (clientId: number) => {
-    const clientAppointments = appointments.filter(app => app.client_id === clientId);
-    const clientSales = sales.filter(sale => sale.client_id === clientId);
     
-    // Combinar e ordenar por data
-    const history = [
-      ...clientAppointments.map(app => {
-        // Verificar se é um pacote
-        const isPackage = app.type === 'pacote' || app.service?.toLowerCase().includes('pacote');
+    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]') as Appointment[];
+    const sales = JSON.parse(localStorage.getItem('sales') || '[]') as Sale[];
+    
+    const clientAppointments = appointments.filter(app => app.client_id === client.id);
+    
+    const history = clientAppointments.map(app => {
+      let packageInfo = null;
+      
+      // Verificar se e um pacote
+      if (app.package_id) {
+        // Para pacotes, encontrar a venda correspondente para obter informacoes do pacote
+        const relatedSale = sales.find(sale => 
+          sale.id === app.package_id && 
+          sale.client_id === client.id && 
+          sale.type === 'package'
+        );
         
-        // Para pacotes, encontrar a venda correspondente para obter informações do pacote
-        let packageInfo = null;
-        let valuePerSession = app.price;
-        
-        if (isPackage) {
-          const relatedSale = clientSales.find(sale => 
-            sale.type === 'pacote' && 
-            (sale.item === app.service || app.service?.includes(sale.item))
-          );
+        if (relatedSale) {
+          // Contar quantas sessoes deste pacote ja foram realizadas ate esta data
+          const packageAppointments = clientAppointments
+            .filter(a => a.package_id === app.package_id)
+            .filter(a => new Date(a.date + ' ' + a.time) <= new Date(app.date + ' ' + app.time))
+            .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
           
-          if (relatedSale && relatedSale.sessions) {
-            const totalValue = parseFloat(relatedSale.price) || 0;
-            valuePerSession = (totalValue / relatedSale.sessions).toFixed(2);
-            
-            // Contar sessões do mesmo pacote até esta data
-            const samePackageAppointments = clientAppointments.filter(
-              a => a.service === app.service && 
-                   (a.status === 'concluido' || a.status === 'completed') && 
-                   new Date(a.date) <= new Date(app.date)
-            ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-            
-            const currentSessionNumber = samePackageAppointments.findIndex(a => a.id === app.id) + 1;
-            packageInfo = currentSessionNumber > 0 ? `${currentSessionNumber}ª sessão de ${relatedSale.sessions}` : null;
-          }
-        } else {
-          // Para procedimentos individuais, contar sessões normalmente
-          const sameServiceAppointments = clientAppointments.filter(
-            a => a.service === app.service && 
-                 (a.status === 'concluido' || a.status === 'completed') && 
-                 new Date(a.date) <= new Date(app.date)
-          ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          const currentSessionNumber = packageAppointments.findIndex(a => a.id === app.id) + 1;
           
-          const currentSessionNumber = sameServiceAppointments.findIndex(a => a.id === app.id) + 1;
-          packageInfo = (app.status === 'concluido' || app.status === 'completed') && currentSessionNumber > 0 ? `${currentSessionNumber}ª sessão` : null;
+          packageInfo = currentSessionNumber > 0 ? `${currentSessionNumber}a sessao de ${relatedSale.sessions}` : null;
         }
+      } else {
+        // Para procedimentos individuais, contar sessoes normalmente
+        const procedureAppointments = clientAppointments
+          .filter(a => a.service === app.service && !a.package_id)
+          .filter(a => new Date(a.date + ' ' + a.time) <= new Date(app.date + ' ' + app.time))
+          .sort((a, b) => new Date(a.date + ' ' + a.time).getTime() - new Date(b.date + ' ' + b.time).getTime());
         
-        return {
-          ...app,
-          type: 'appointment',
-          date: app.date,
-          description: app.service || 'Agendamento',
-          status: app.status,
-          sessionInfo: packageInfo,
-          time: app.time || '00:00',
-          value: valuePerSession,
-          isPackage: isPackage
-        };
-      }),
-      ...clientSales
-        .filter(sale => sale.type !== 'package') // Filtrar apenas produtos do estoque
-        .map(sale => ({
-          ...sale,
-          type: 'sale',
-          date: sale.date,
-          description: sale.item || 'Venda',
-          status: sale.status,
-          sessionInfo: null,
-          time: '00:00'
-        }))
-    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const currentSessionNumber = procedureAppointments.findIndex(a => a.id === app.id) + 1;
+        
+        packageInfo = (app.status === 'concluido' || app.status === 'completed') && currentSessionNumber > 0 ? `${currentSessionNumber}a sessao` : null;
+      }
+      
+      return {
+        id: app.id,
+        service: app.service,
+        date: app.date,
+        time: app.time,
+        status: app.status,
+        price: app.price,
+        packageInfo,
+        type: app.package_id ? 'package' : 'procedure'
+      };
+    }).sort((a, b) => {
+      const dateA = new Date(a.date + ' ' + a.time);
+      const dateB = new Date(b.date + ' ' + b.time);
+      return dateB.getTime() - dateA.getTime();
+    });
     
-    return history;
+    setClientHistory(history);
+    setIsHistoryOpen(true);
   };
 
-
-
-  // Função para calcular progresso de todos os pacotes (incluindo finalizados)
-  const getAllPackageProgress = (clientId: number) => {
-    const clientSales = sales.filter(sale => sale.client_id === clientId && sale.type === 'package');
-    const clientAppointments = appointments.filter(appointment => appointment.client_id === clientId);
+  // Funcao para calcular progresso de todos os pacotes (incluindo finalizados)
+  const getAllPackageProgress = (clientId: string) => {
+    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]') as Appointment[];
+    const sales = JSON.parse(localStorage.getItem('sales') || '[]') as Sale[];
     
-    return clientSales.map(sale => {
-      const completedSessions = clientAppointments.filter(
-        appointment => appointment.sale_id === sale.id && appointment.status === 'completed'
+    const clientPackages = sales.filter(sale => 
+      sale.client_id === clientId && 
+      sale.type === 'package'
+    );
+    
+    return clientPackages.map(pkg => {
+      const packageAppointments = appointments.filter(app => app.package_id === pkg.id);
+      const completedSessions = packageAppointments.filter(app => 
+        app.status === 'concluido' || app.status === 'completed'
       ).length;
       
       return {
-        name: sale.procedure_name,
-        completed: completedSessions,
-        total: sale.sessions || 1,
-        totalValue: parseFloat(sale.price) || 0
+        name: pkg.service,
+        total: pkg.sessions || 1,
+        completed: completedSessions
       };
     });
   };
 
-  // Função para calcular resumo das sessões por tipo de procedimento
-  const getSessionsSummary = (clientId: number) => {
-    const clientAppointments = appointments.filter(
-      appointment => appointment.client_id === clientId && appointment.status === 'completed'
+  // Funcao para calcular resumo das sessoes por tipo de procedimento
+  const getSessionsSummary = (clientId: string) => {
+    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]') as Appointment[];
+    const completedAppointments = appointments.filter(app => 
+      app.client_id === clientId && 
+      (app.status === 'concluido' || app.status === 'completed')
     );
     
-    const summary = clientAppointments.reduce((acc, appointment) => {
-      const serviceName = appointment.service || 'Serviço não especificado';
+    const summary = completedAppointments.reduce((acc, appointment) => {
+      const serviceName = appointment.service || 'Servico nao especificado';
       acc[serviceName] = (acc[serviceName] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -277,284 +314,312 @@ const Clientes = () => {
     }));
   };
 
-  // Função para calcular progresso dos pacotes (apenas ativos)
-  const getPackageProgress = (clientId: number) => {
-    const clientSales = sales.filter(sale => sale.client_id === clientId && sale.type === 'package');
-    const clientAppointments = appointments.filter(appointment => appointment.client_id === clientId);
+  // Funcao para calcular progresso dos pacotes (apenas ativos)
+  const getPackageProgress = (clientId: string) => {
+    const appointments = JSON.parse(localStorage.getItem('appointments') || '[]') as Appointment[];
+    const sales = JSON.parse(localStorage.getItem('sales') || '[]') as Sale[];
     
-    return clientSales.map(sale => {
-      const completedSessions = clientAppointments.filter(
-        appointment => appointment.sale_id === sale.id && appointment.status === 'completed'
+    const clientPackages = sales.filter(sale => 
+      sale.client_id === clientId && 
+      sale.type === 'package'
+    );
+    
+    return clientPackages.map(pkg => {
+      const packageAppointments = appointments.filter(app => app.package_id === pkg.id);
+      const completedSessions = packageAppointments.filter(app => 
+        app.status === 'concluido' || app.status === 'completed'
       ).length;
       
       return {
-        name: sale.procedure_name,
-        completed: completedSessions,
-        total: sale.sessions || 1
+        name: pkg.service,
+        total: pkg.sessions || 1,
+        completed: completedSessions
       };
-    }).filter(pkg => pkg.completed < pkg.total); // Filtrar apenas pacotes não finalizados
+    }).filter(pkg => pkg.completed < pkg.total); // Filtrar apenas pacotes nao finalizados
   };
 
-  const getGroupedHistory = (clientId: number) => {
-    const history = getClientHistory(clientId);
-    const grouped = history.reduce((acc, item) => {
-      const dateKey = item.date;
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
+  useEffect(() => {
+    const loadClients = () => {
+      try {
+        const savedClients = localStorage.getItem('clients');
+        if (savedClients) {
+          setClients(JSON.parse(savedClients));
+        }
+      } catch (error) {
+        console.error('Erro ao carregar clientes:', error);
+      } finally {
+        setIsLoadingClients(false);
       }
-      acc[dateKey].push(item);
-      return acc;
-    }, {} as Record<string, any[]>);
-    
-    return Object.entries(grouped).sort(([a], [b]) => 
-      new Date(b).getTime() - new Date(a).getTime()
-    );
-  };
+    };
+
+    loadClients();
+  }, []);
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <SalonSidebar />
-        
-        <main className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 md:h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-4 md:px-6 sticky top-0 z-10">
-            <SidebarTrigger className="mr-2 md:mr-4" />
-            <div className="flex items-center space-x-2">
-              <Users className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-              <h2 className="text-base md:text-lg font-semibold text-foreground truncate">Clientes</h2>
+    <div className="min-h-screen bg-gradient-background">
+      <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+        <main className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Clientes</h1>
+              <p className="text-muted-foreground">Gerencie sua base de clientes</p>
             </div>
-          </header>
-
-          <div className="flex-1 p-3 md:p-6 space-y-4 md:space-y-6 overflow-auto">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold text-foreground mb-1 md:mb-2">Gerenciar Clientes</h1>
-                <p className="text-sm md:text-base text-muted-foreground">Visualize e gerencie todos os seus clientes</p>
-              </div>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg w-full sm:w-auto">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Novo Cliente
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
-                    <div className="grid gap-2">
+            
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-primary hover:bg-gradient-primary/90 text-primary-foreground w-full sm:w-auto">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Novo Cliente
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Cadastrar Novo Cliente
+                  </DialogTitle>
+                </DialogHeader>
+                
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
                       <Label htmlFor="name">Nome *</Label>
                       <Input
                         id="name"
-                        value={newClient.name}
-                        onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="Nome completo"
+                        required
                       />
                     </div>
-                    <div className="grid gap-2">
+                    
+                    <div className="space-y-2">
                       <Label htmlFor="phone">Telefone *</Label>
                       <Input
                         id="phone"
-                        value={newClient.phone}
-                        onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                         placeholder="(11) 99999-9999"
+                        required
                       />
                     </div>
-                    <div className="grid gap-2">
+                    
+                    <div className="space-y-2">
                       <Label htmlFor="email">E-mail</Label>
                       <Input
                         id="email"
                         type="email"
-                        value={newClient.email}
-                        onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-                        placeholder="cliente@email.com"
+                        value={formData.email}
+                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="email@exemplo.com"
                       />
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="cpf">CPF</Label>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="birthDate">Data de Nascimento</Label>
                       <Input
-                        id="cpf"
-                        value={newClient.cpf}
-                        onChange={(e) => setNewClient({ ...newClient, cpf: e.target.value })}
-                        placeholder="000.000.000-00"
+                        id="birthDate"
+                        type="date"
+                        value={formData.birthDate}
+                        onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
                       />
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="cep">CEP</Label>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Endereco</Label>
                       <Input
-                        id="cep"
-                        value={newClient.cep}
-                        onChange={(e) => setNewClient({ ...newClient, cep: e.target.value })}
+                        id="address"
+                        value={formData.address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Rua, Avenida..."
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="numero">Numero</Label>
+                      <Input
+                        id="numero"
+                        value={formData.number}
+                        onChange={(e) => setFormData(prev => ({ ...prev, number: e.target.value }))}
+                        placeholder="123"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="neighborhood">Bairro</Label>
+                      <Input
+                        id="neighborhood"
+                        value={formData.neighborhood}
+                        onChange={(e) => setFormData(prev => ({ ...prev, neighborhood: e.target.value }))}
+                        placeholder="Centro"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Cidade</Label>
+                      <Input
+                        id="city"
+                        value={formData.city}
+                        onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                        placeholder="Sao Paulo"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="state">Estado</Label>
+                      <Input
+                        id="state"
+                        value={formData.state}
+                        onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                        placeholder="SP"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="zipCode">CEP</Label>
+                      <Input
+                        id="zipCode"
+                        value={formData.zipCode}
+                        onChange={(e) => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
                         placeholder="00000-000"
                       />
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="rua">Rua/Avenida</Label>
-                      <Input
-                        id="rua"
-                        value={newClient.rua}
-                        onChange={(e) => setNewClient({ ...newClient, rua: e.target.value })}
-                        placeholder="Nome da rua ou avenida"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="grid gap-2">
-                        <Label htmlFor="numero">Número</Label>
-                        <Input
-                          id="numero"
-                          value={newClient.numero}
-                          onChange={(e) => setNewClient({ ...newClient, numero: e.target.value })}
-                          placeholder="123"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="bairro">Bairro</Label>
-                        <Input
-                          id="bairro"
-                          value={newClient.bairro}
-                          onChange={(e) => setNewClient({ ...newClient, bairro: e.target.value })}
-                          placeholder="Nome do bairro"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="grid gap-2">
-                        <Label htmlFor="cidade">Cidade</Label>
-                        <Input
-                          id="cidade"
-                          value={newClient.cidade}
-                          onChange={(e) => setNewClient({ ...newClient, cidade: e.target.value })}
-                          placeholder="Nome da cidade"
-                        />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="estado">Estado</Label>
-                        <Input
-                          id="estado"
-                          value={newClient.estado}
-                          onChange={(e) => setNewClient({ ...newClient, estado: e.target.value })}
-                          placeholder="SP"
-                          maxLength={2}
-                        />
-                      </div>
-                    </div>
                   </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleNewClient} className="bg-gradient-primary">
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <Button type="submit" className="bg-gradient-primary hover:bg-gradient-primary/90 text-primary-foreground flex-1">
                       Cadastrar Cliente
                     </Button>
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+                      Cancelar
+                    </Button>
                   </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
 
-            <Card className="bg-gradient-card border-0 shadow-md">
-              <CardHeader className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input 
-                      placeholder="Buscar clientes..." 
-                      className="pl-10 bg-background/50 border-border/50 focus:border-primary font-medium"
-                    />
-                  </div>
-                  <Button variant="outline" className="bg-gradient-card w-full sm:w-auto">
-                    Filtros
-                  </Button>
+          <Card className="bg-gradient-card border-0 shadow-md">
+            <CardHeader className="p-4 md:p-6">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input 
+                    placeholder="Buscar clientes..." 
+                    className="pl-10 bg-background/50 border-border/50 focus:border-primary font-medium"
+                  />
                 </div>
-              </CardHeader>
-            </Card>
+                <Button variant="outline" className="bg-gradient-card w-full sm:w-auto">
+                  Filtros
+                </Button>
+              </div>
+            </CardHeader>
+          </Card>
 
-            <div className="grid gap-4">
-              {isLoadingClients ? (
-                <Card className="bg-gradient-card border-0 shadow-md">
-                  <CardContent className="p-6">
-                    <div className="text-center text-muted-foreground">
-                      Carregando clientes...
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : clients.length === 0 ? (
-                <Card className="bg-gradient-card border-0 shadow-md">
-                  <CardContent className="p-6">
-                    <div className="text-center text-muted-foreground">
-                      Nenhum cliente encontrado. Cadastre o primeiro cliente!
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                clients.map((client) => (
-                  <Card key={client.id} className="bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
-                    <CardContent className="p-4 md:p-6">
-                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div className="flex items-center space-x-3 md:space-x-4 min-w-0 flex-1">
-                          <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-primary rounded-full flex items-center justify-center flex-shrink-0">
-                            <Users className="w-5 h-5 md:w-6 md:h-6 text-primary-foreground" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h3 className="text-base md:text-lg font-semibold text-foreground truncate">{client.name}</h3>
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-xs md:text-sm text-muted-foreground mt-1 gap-1 sm:gap-0">
-                              <div className="flex items-center">
-                                <Phone className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
-                                <span className="truncate">{client.phone}</span>
-                              </div>
-                              {client.email && (
-                                <div className="flex items-center">
-                                  <Mail className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
-                                  <span className="truncate">{client.email}</span>
-                                </div>
-                              )}
+          <div className="grid gap-4">
+            {isLoadingClients ? (
+              <Card className="bg-gradient-card border-0 shadow-md">
+                <CardContent className="p-6">
+                  <div className="text-center text-muted-foreground">
+                    Carregando clientes...
+                  </div>
+                </CardContent>
+              </Card>
+            ) : clients.length === 0 ? (
+              <Card className="bg-gradient-card border-0 shadow-md">
+                <CardContent className="p-6">
+                  <div className="text-center text-muted-foreground">
+                    Nenhum cliente encontrado. Cadastre o primeiro cliente!
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              clients.map((client) => (
+                <Card key={client.id} className="bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
+                  <CardContent className="p-4 md:p-6">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div className="flex items-center space-x-3 md:space-x-4 min-w-0 flex-1">
+                        <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-primary rounded-full flex items-center justify-center flex-shrink-0">
+                          <Users className="w-5 h-5 md:w-6 md:h-6 text-primary-foreground" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-base md:text-lg font-semibold text-foreground truncate">{client.name}</h3>
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 text-xs md:text-sm text-muted-foreground mt-1 gap-1 sm:gap-0">
+                            <div className="flex items-center">
+                              <Phone className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
+                              <span className="truncate">{client.phone}</span>
                             </div>
+                            {client.email && (
+                              <div className="flex items-center">
+                                <Mail className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
+                                <span className="truncate">{client.email}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between lg:justify-end gap-4">
+                        <div className="text-left sm:text-right">
+                          <div className="text-xs md:text-sm text-muted-foreground">Ultima visita</div>
+                          <div className="font-semibold text-foreground text-sm md:text-base">{client.lastVisit}</div>
+                          <div className="text-xs md:text-sm text-success font-medium mt-1">{client.totalSpent}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {getPackageProgress(client.id).length > 0 ? (
+                              <div className="flex flex-wrap gap-1 justify-start sm:justify-end">
+                                {getPackageProgress(client.id).map((pkg, index) => (
+                                  <Badge 
+                                    key={index} 
+                                    variant="default"
+                                    className="text-xs"
+                                  >
+                                    {pkg.name}: {pkg.completed}/{pkg.total}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span>Nenhum pacote ativo</span>
+                            )}
                           </div>
                         </div>
                         
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between lg:justify-end gap-4">
-                          <div className="text-left sm:text-right">
-                            <div className="text-xs md:text-sm text-muted-foreground">Última visita</div>
-                            <div className="font-semibold text-foreground text-sm md:text-base">{client.lastVisit}</div>
-                            <div className="text-xs md:text-sm text-success font-medium mt-1">{client.totalSpent}</div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {getPackageProgress(client.id).length > 0 ? (
-                                <div className="flex flex-wrap gap-1 justify-start sm:justify-end">
-                                  {getPackageProgress(client.id).map((pkg, index) => (
-                                    <Badge 
-                                      key={index} 
-                                      variant="default"
-                                      className="text-xs"
-                                    >
-                                      {pkg.name}: {pkg.completed}/{pkg.total}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span>Nenhum pacote ativo</span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="bg-gradient-card w-full sm:w-auto"
-                              onClick={() => handleEditClient(client)}
-                            >
-                              <Edit className="w-4 h-4 mr-1" />
-                              Editar
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="bg-gradient-card text-destructive hover:text-destructive w-full sm:w-auto"
-                              onClick={() => handleDeleteClient(client)}
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="bg-gradient-card w-full sm:w-auto"
+                            onClick={() => handleEditClient(client)}
                           >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Excluir
+                            <Edit className="w-4 h-4 mr-1" />
+                            Editar
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="bg-gradient-card text-destructive hover:text-destructive w-full sm:w-auto"
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Excluir
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmar Exclusao</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir o cliente {client.name}?
+                                  Esta acao nao pode ser desfeita. Todos os dados relacionados a este cliente serao removidos.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteClient(client)}>
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                           <Button 
                             variant="outline" 
                             size="sm" 
@@ -562,7 +627,7 @@ const Clientes = () => {
                             onClick={() => handleViewHistory(client)}
                           >
                             <History className="w-4 h-4 mr-1" />
-                            Histórico
+                            Historico
                           </Button>
                           <Button variant="outline" size="sm" className="bg-gradient-card">
                             <Calendar className="w-4 h-4 mr-1" />
@@ -570,37 +635,37 @@ const Clientes = () => {
                           </Button>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </main>
       </div>
 
-      {/* Modal de Histórico do Cliente */}
+      {/* Modal de Historico do Cliente */}
       <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <History className="w-5 h-5" />
-              Histórico de {selectedClient?.name}
+              Historico de {selectedClient?.name}
             </DialogTitle>
           </DialogHeader>
           
           {selectedClient && (
             <div className="space-y-6">
-              {/* Informações do Cliente */}
+              {/* Informacoes do Cliente */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    Informações do Cliente
+                    Informacoes do Cliente
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Nome</p>
                       <p className="font-medium">{selectedClient.name}</p>
@@ -611,81 +676,74 @@ const Clientes = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">E-mail</p>
-                      <p className="font-medium">{selectedClient.email || 'Não informado'}</p>
+                      <p className="font-medium">{selectedClient.email || 'Nao informado'}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Gasto</p>
-                      <p className="font-medium text-green-600">{selectedClient.totalSpent}</p>
+                      <p className="text-sm text-muted-foreground">Cliente desde</p>
+                      <p className="font-medium">{formatDate(selectedClient.createdAt)}</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Resumo de Sessões */}
-              {getSessionsSummary(selectedClient.id).length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5" />
-                      Resumo de Sessões Realizadas
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {getSessionsSummary(selectedClient.id).map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
-                          <div>
-                            <p className="font-medium text-sm">{item.service}</p>
-                            <p className="text-xs text-muted-foreground">Procedimento</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-blue-600">{item.count}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.count === 1 ? 'sessão' : 'sessões'}
-                            </p>
-                          </div>
+              {/* Resumo de Sessoes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Resumo de Sessoes Realizadas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {getSessionsSummary(selectedClient.id).length > 0 ? (
+                      getSessionsSummary(selectedClient.id).map((item, index) => (
+                        <div key={index} className="bg-muted/50 p-3 rounded-lg">
+                          <p className="font-medium">{item.service}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.count} {item.count === 1 ? 'sessao' : 'sessoes'}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground col-span-full">Nenhuma sessao realizada ainda</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
-              {/* Pacotes */}
+              {/* Progresso dos Pacotes */}
               {getAllPackageProgress(selectedClient.id).length > 0 && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Package className="w-5 h-5" />
+                      <Calendar className="w-5 h-5" />
                       Pacotes
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {getAllPackageProgress(selectedClient.id).map((pkg, index) => {
-                        const valuePerSession = pkg.totalValue ? (pkg.totalValue / pkg.total).toFixed(2) : '0.00';
+                        const progress = (pkg.completed / pkg.total) * 100;
+                        const valuePerSession = 0; // Placeholder - voce pode calcular isso baseado no preco do pacote
+                        
                         return (
-                          <div key={index} className="flex items-center justify-between p-3 border border-gray-700 bg-gray-800/30 rounded-lg">
-                            <div>
-                              <p className="font-medium text-white">{pkg.name}</p>
-                              <p className="text-sm text-gray-400">
-                                Sessões utilizadas: {pkg.completed}/{pkg.total}
-                              </p>
-                              <p className="text-sm text-green-400 font-medium">
-                                R$ {valuePerSession} por sessão
-                              </p>
+                          <div key={index} className="bg-muted/50 p-4 rounded-lg">
+                            <div className="flex justify-between items-center mb-2">
+                              <h4 className="font-medium">{pkg.name}</h4>
+                              <span className="text-sm text-muted-foreground">
+                                Sessoes utilizadas: {pkg.completed}/{pkg.total}
+                              </span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={pkg.completed >= pkg.total ? "destructive" : "default"}>
-                                {pkg.completed}/{pkg.total}
-                              </Badge>
-                              <div className="w-20 bg-gray-700 rounded-full h-2">
-                                <div 
-                                  className="bg-blue-500 h-2 rounded-full" 
-                                  style={{ width: `${(pkg.completed / pkg.total) * 100}%` }}
-                                ></div>
-                              </div>
+                            <div className="w-full bg-muted rounded-full h-2 mb-2">
+                              <div 
+                                className="bg-primary h-2 rounded-full transition-all duration-300" 
+                                style={{ width: `${progress}%` }}
+                              ></div>
                             </div>
+                            <p className="text-xs text-muted-foreground">
+                              R$ {valuePerSession} por sessao
+                            </p>
                           </div>
                         );
                       })}
@@ -694,80 +752,54 @@ const Clientes = () => {
                 </Card>
               )}
 
-              {/* Histórico de Atividades */}
+              {/* Historico de Atividades */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    Histórico de Atividades
+                    <History className="w-5 h-5" />
+                    Historico de Atividades
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {getClientHistory(selectedClient.id).length > 0 ? (
-                    <div className="max-h-96 overflow-y-auto space-y-4">
-                      {getGroupedHistory(selectedClient.id).map(([date, items]) => (
-                        <div key={date} className="border rounded-lg p-4">
-                          <h4 className="font-semibold text-lg mb-3 text-primary">
-                            {formatDateBR(date)}
-                          </h4>
-                          <div className="space-y-2">
-                            {items.map((item: any, index) => (
-                               <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 border border-gray-700 rounded-md">
-                                 <div className="flex items-center gap-3">
-                                   <div className="text-sm text-gray-400 min-w-[50px]">
-                                     {item.time !== '00:00' ? item.time : '-'}
-                                   </div>
-                                   <Badge variant={item.type === 'appointment' ? 'default' : 'secondary'} className="min-w-[80px] justify-center">
-                                     {item.type === 'appointment' ? 'Agendamento' : 'Venda'}
-                                   </Badge>
-                                   <div className="flex-1">
-                                     <div className="font-medium text-white">{item.description}</div>
-                                     {item.sessionInfo && (
-                                       <div className="text-sm text-blue-400 font-medium bg-blue-900/30 border border-blue-700 px-2 py-1 rounded-md inline-block mt-1">
-                                         {item.sessionInfo}
-                                       </div>
-                                     )}
-                                   </div>
-                                 </div>
-                                <div className="flex items-center gap-3">
-                                  <Badge 
-                                    className={
-                                      item.status === 'completed' || item.status === 'pago' ? 'bg-green-900/30 text-green-400 border-green-700' :
-                                      item.status === 'confirmado' ? 'bg-blue-900/30 text-blue-400 border-blue-700' :
-                                      item.status === 'pendente' || item.status === 'aguardando' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-700' :
-                                      item.status === 'cancelada' ? 'bg-red-900/30 text-red-400 border-red-700' :
-                                      'bg-gray-900/30 text-gray-400 border-gray-700'
-                                    }
-                                    variant="outline"
-                                  >
-                                    {item.status === 'completed' ? 'Concluído' :
-                                     item.status === 'pago' ? 'Pago' :
-                                     item.status === 'pendente' ? 'Pendente' :
-                                     item.status === 'confirmado' ? 'Confirmado' :
-                                     item.status === 'aguardando' ? 'Aguardando' :
-                                     item.status === 'cancelada' ? 'Cancelada' :
-                                     item.status}
-                                  </Badge>
-                                  <div className="font-semibold text-green-400 min-w-[80px] text-right">
-                                    {item.value ? `R$ ${item.value}` : (item.price ? `R$ ${item.price}` : '-')}
-                                    {item.isPackage && (
-                                      <span className="text-xs text-gray-400 block">
-                                        por sessão
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                  {clientHistory.length > 0 ? (
+                    <div className="space-y-4">
+                      {clientHistory.map((item, index) => (
+                        <div key={index} className="border-l-2 border-primary pl-4 pb-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
+                              <h4 className="font-medium">{item.service}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(item.date)} as {item.time}
+                                {item.packageInfo && (
+                                  <span className="ml-2 text-primary">({item.packageInfo})</span>
+                                )}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                variant={
+                                  item.status === 'completed' ? 'default' :
+                                  item.status === 'confirmed' ? 'secondary' : 'outline'
+                                }
+                              >
+                                {item.status === 'completed' ? 'Concluido' :
+                                 item.status === 'confirmed' ? 'Confirmado' : item.status}
+                              </Badge>
+                              <span className="text-sm font-medium">
+                                R$ {typeof item.price === 'number' ? item.price.toFixed(2) : '0.00'}
+                                {item.type === 'package' && (
+                                  <span className="text-xs text-muted-foreground ml-1">
+                                    por sessao
+                                  </span>
+                                )}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Nenhum histórico encontrado para este cliente</p>
-                    </div>
+                    <p>Nenhum historico encontrado para este cliente</p>
                   )}
                 </CardContent>
               </Card>
@@ -776,9 +808,9 @@ const Clientes = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Edição de Cliente */}
+      {/* Modal de Edicao de Cliente */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Edit className="w-5 h-5" />
@@ -786,159 +818,123 @@ const Clientes = () => {
             </DialogTitle>
           </DialogHeader>
           
-          {editingClient && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-name">Nome *</Label>
-                  <Input
-                    id="edit-name"
-                    value={editingClient.name}
-                    onChange={(e) => setEditingClient({...editingClient, name: e.target.value})}
-                    placeholder="Nome completo"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-phone">Telefone</Label>
-                  <Input
-                    id="edit-phone"
-                    value={editingClient.phone}
-                    onChange={(e) => setEditingClient({...editingClient, phone: e.target.value})}
-                    placeholder="(11) 99999-9999"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-email">E-mail</Label>
-                  <Input
-                    id="edit-email"
-                    type="email"
-                    value={editingClient.email}
-                    onChange={(e) => setEditingClient({...editingClient, email: e.target.value})}
-                    placeholder="email@exemplo.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-cpf">CPF</Label>
-                  <Input
-                    id="edit-cpf"
-                    value={editingClient.cpf}
-                    onChange={(e) => setEditingClient({...editingClient, cpf: e.target.value})}
-                    placeholder="000.000.000-00"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-cep">CEP</Label>
-                  <Input
-                    id="edit-cep"
-                    value={editingClient.cep}
-                    onChange={(e) => setEditingClient({...editingClient, cep: e.target.value})}
-                    placeholder="00000-000"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-rua">Rua/Avenida</Label>
-                  <Input
-                    id="edit-rua"
-                    value={editingClient.rua}
-                    onChange={(e) => setEditingClient({...editingClient, rua: e.target.value})}
-                    placeholder="Nome da rua"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="edit-numero">Número</Label>
-                  <Input
-                    id="edit-numero"
-                    value={editingClient.numero}
-                    onChange={(e) => setEditingClient({...editingClient, numero: e.target.value})}
-                    placeholder="123"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-bairro">Bairro</Label>
-                  <Input
-                    id="edit-bairro"
-                    value={editingClient.bairro}
-                    onChange={(e) => setEditingClient({...editingClient, bairro: e.target.value})}
-                    placeholder="Nome do bairro"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-cidade">Cidade</Label>
-                  <Input
-                    id="edit-cidade"
-                    value={editingClient.cidade}
-                    onChange={(e) => setEditingClient({...editingClient, cidade: e.target.value})}
-                    placeholder="Nome da cidade"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="edit-estado">Estado</Label>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nome *</Label>
                 <Input
-                  id="edit-estado"
-                  value={editingClient.estado}
-                  onChange={(e) => setEditingClient({...editingClient, estado: e.target.value})}
-                  placeholder="SP"
-                  maxLength={2}
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Nome completo"
+                  required
                 />
               </div>
               
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleUpdateClient} className="bg-gradient-primary">
-                  Salvar Alterações
-                </Button>
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Telefone *</Label>
+                <Input
+                  id="edit-phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="(11) 99999-9999"
+                  required
+                />
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Confirmação de Exclusão */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trash2 className="w-5 h-5 text-destructive" />
-              Confirmar Exclusão
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedClient && (
-            <div className="space-y-4">
-              <p className="text-muted-foreground">
-                Tem certeza que deseja excluir o cliente <strong>{selectedClient.name}</strong>?
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Esta ação não pode ser desfeita. Todos os dados relacionados a este cliente serão removidos.
-              </p>
               
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button variant="destructive" onClick={confirmDeleteClient}>
-                  Excluir Cliente
-                </Button>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">E-mail</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-birthDate">Data de Nascimento</Label>
+                <Input
+                  id="edit-birthDate"
+                  type="date"
+                  value={formData.birthDate}
+                  onChange={(e) => setFormData(prev => ({ ...prev, birthDate: e.target.value }))}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-address">Endereco</Label>
+                <Input
+                  id="edit-address"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Rua, Avenida..."
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-numero">Numero</Label>
+                <Input
+                  id="edit-numero"
+                  value={formData.number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, number: e.target.value }))}
+                  placeholder="123"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-neighborhood">Bairro</Label>
+                <Input
+                  id="edit-neighborhood"
+                  value={formData.neighborhood}
+                  onChange={(e) => setFormData(prev => ({ ...prev, neighborhood: e.target.value }))}
+                  placeholder="Centro"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-city">Cidade</Label>
+                <Input
+                  id="edit-city"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="Sao Paulo"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-state">Estado</Label>
+                <Input
+                  id="edit-state"
+                  value={formData.state}
+                  onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                  placeholder="SP"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-zipCode">CEP</Label>
+                <Input
+                  id="edit-zipCode"
+                  value={formData.zipCode}
+                  onChange={(e) => setFormData(prev => ({ ...prev, zipCode: e.target.value }))}
+                  placeholder="00000-000"
+                />
               </div>
             </div>
-          )}
+            
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Button type="submit" className="bg-gradient-primary hover:bg-gradient-primary/90 text-primary-foreground flex-1">
+                Salvar Alteracoes
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)} className="flex-1">
+                Cancelar
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
-    </SidebarProvider>
+    </div>
   );
-};
-
-export default Clientes;
+}
