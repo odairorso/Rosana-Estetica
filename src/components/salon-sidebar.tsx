@@ -50,13 +50,13 @@ export function SalonSidebar() {
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
-  const isActive = (path: string) => currentPath === path;
+  const isActive = (path: string) => {
+    if (path === "/") {
+      return currentPath === "/";
+    }
+    return currentPath.startsWith(path);
+  };
   
-  const getNavCls = ({ isActive: active }: { isActive: boolean }) =>
-    active 
-      ? "bg-gradient-primary text-white shadow-md hover:shadow-lg transition-all duration-200 font-semibold" 
-      : "hover:bg-secondary/50 transition-colors duration-200 text-foreground font-medium";
-
   return (
     <Sidebar className={collapsed ? "w-16" : "w-64"}>
       <SidebarHeader className="border-b border-border/50 p-4">
@@ -88,9 +88,11 @@ export function SalonSidebar() {
                   <SidebarMenuButton asChild className="w-full">
                     <NavLink 
                       to={item.url} 
-                      className={({ isActive }) => 
-                        `flex items-center w-full px-3 py-2 rounded-md text-sm transition-all duration-200 ${getNavCls({ isActive })}`
-                      }
+                      className={`flex items-center w-full px-3 py-2 rounded-md text-sm transition-all duration-200 ${
+                        isActive(item.url)
+                          ? "bg-gradient-primary text-white shadow-md hover:shadow-lg font-semibold"
+                          : "hover:bg-secondary/50 text-foreground font-medium"
+                      }`}
                       title={collapsed ? item.title : undefined}
                     >
                       <item.icon className={`${collapsed ? 'w-5 h-5' : 'w-5 h-5 mr-3'} shrink-0`} />
