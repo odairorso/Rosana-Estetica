@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, DollarSign, Edit, Calendar, Sparkles } from "lucide-react";
 import { useSalon } from "@/contexts/SalonContext";
 import { ScheduleProcedureModal } from "@/components/schedule-procedure-modal";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SalonSidebar } from "@/components/salon-sidebar";
 
 export default function Procedimentos() {
   const { procedures, isLoadingProcedures } = useSalon();
@@ -29,17 +31,30 @@ export default function Procedimentos() {
     setIsScheduleModalOpen(true);
   };
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Procedimentos</h1>
-          <p className="text-gray-600 mt-1">Gerencie os procedimentos disponíveis</p>
-        </div>
-        <Button className="bg-pink-500 hover:bg-pink-600 text-white">
-          <Sparkles className="w-4 h-4 mr-2" />
-          Novo Procedimento
-        </Button>
-      </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <SalonSidebar />
+        
+        <main className="flex-1 flex flex-col min-w-0">
+          <header className="h-14 md:h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-4 md:px-6 sticky top-0 z-10">
+            <SidebarTrigger className="mr-2 md:mr-4" />
+            <div className="flex items-center space-x-2">
+              <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              <h2 className="text-base md:text-lg font-semibold text-foreground truncate">Procedimentos</h2>
+            </div>
+          </header>
+
+          <div className="flex-1 p-3 md:p-6 space-y-4 md:space-y-6 overflow-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Procedimentos</h1>
+                <p className="text-gray-600 mt-1">Gerencie os procedimentos disponíveis</p>
+              </div>
+              <Button className="bg-pink-500 hover:bg-pink-600 text-white">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Novo Procedimento
+              </Button>
+            </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {availableProcedures.map((procedure) => (
@@ -106,14 +121,17 @@ export default function Procedimentos() {
         </div>
       )}
 
-      <ScheduleProcedureModal
-        isOpen={isScheduleModalOpen}
-        onClose={() => {
-          setIsScheduleModalOpen(false);
-          setSelectedProcedure(null);
-        }}
-        procedure={selectedProcedure}
-      />
-    </div>
+            <ScheduleProcedureModal
+              isOpen={isScheduleModalOpen}
+              onClose={() => {
+                setIsScheduleModalOpen(false);
+                setSelectedProcedure(null);
+              }}
+              procedure={selectedProcedure}
+            />
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
   );
 }

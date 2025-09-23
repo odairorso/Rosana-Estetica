@@ -3,7 +3,7 @@ import { SalonSidebar } from "@/components/salon-sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package2, Plus, AlertTriangle } from "lucide-react";
+import { Package, Package2, Plus, AlertTriangle } from "lucide-react";
 
 const mockInventory = [
   {

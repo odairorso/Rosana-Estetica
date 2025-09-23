@@ -2,7 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SalonSidebar } from "@/components/salon-sidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Plus } from "lucide-react";
+import { DollarSign, Plus, TrendingUp } from "lucide-react";
 
 const Financeiro = () => {
   return (
