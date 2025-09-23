@@ -22,9 +22,12 @@ import {
   MapPin
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSalon } from "@/contexts/SalonContext";
 
 export default function Configuracoes() {
   const { toast } = useToast();
+  const { logoUrl, setLogoUrl } = useSalon();
+
   const [salonInfo, setSalonInfo] = useState({
     name: "Rosana Estética",
     phone: "(11) 99999-9999",
@@ -48,19 +51,17 @@ export default function Configuracoes() {
     passwordExpiry: "90"
   });
 
-  const [logoPreview, setLogoPreview] = useState<string | null>("/logo.png");
-
   const handleLogoChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
+        setLogoUrl(reader.result as string);
       };
       reader.readAsDataURL(file);
       toast({
         title: "Logo selecionado",
-        description: "Clique em 'Salvar Alterações' para confirmar.",
+        description: "A pré-visualização foi atualizada. Salve para manter a alteração.",
       });
     }
   };
@@ -78,7 +79,7 @@ export default function Configuracoes() {
   };
 
   const handleSave = () => {
-    // Aqui seria a lógica para salvar o logo no backend
+    // A logo já é salva no momento da alteração via localStorage
     toast({
       title: "Configurações salvas",
       description: "Suas configurações foram atualizadas com sucesso.",
@@ -121,7 +122,7 @@ export default function Configuracoes() {
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-4">
                   <img 
-                    src={logoPreview || "/placeholder.svg"} 
+                    src={logoUrl || "/placeholder.svg"} 
                     alt="Logo do Salão" 
                     className="w-16 h-16 rounded-lg object-cover"
                   />

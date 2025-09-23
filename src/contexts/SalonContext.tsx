@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabaseClient';
 
@@ -92,6 +92,8 @@ interface SalonContextType {
   packages: Package[];
   pendingProcedures: PendingAppointment[];
   activPackages: PendingAppointment[];
+  logoUrl: string;
+  setLogoUrl: (url: string) => void;
   addClient: (client: Omit<Client, 'id'>) => Promise<void>;
   updateClient: (id: number, client: Partial<Client>) => Promise<void>;
   deleteClient: (id: number) => Promise<void>;
@@ -183,6 +185,20 @@ const fetchPackages = async (): Promise<Package[]> => {
 
 export function SalonProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+
+  const [logoUrl, setLogoUrlState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('salonLogo') || '/logo.png';
+    }
+    return '/logo.png';
+  });
+
+  const setLogoUrl = (url: string) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('salonLogo', url);
+    }
+    setLogoUrlState(url);
+  };
 
   // Queries
   const { data: clients = [], isLoading: isLoadingClients } = useQuery<Client[]>({
@@ -418,6 +434,8 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     packages,
     pendingProcedures,
     activPackages,
+    logoUrl,
+    setLogoUrl,
 
     addSale: (sale) => addSaleMutation.mutate(sale),
     addClient: async (client) => {

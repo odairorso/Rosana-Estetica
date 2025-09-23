@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useSalon } from "@/contexts/SalonContext";
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -44,6 +45,7 @@ const navigationItems = [
 
 export function SalonSidebar() {
   const { state, toggleSidebar } = useSidebar();
+  const { logoUrl } = useSalon();
   const location = useLocation();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
@@ -61,7 +63,7 @@ export function SalonSidebar() {
         <div className="flex items-center justify-between">
           {!collapsed && (
             <div className="flex items-center space-x-3">
-              <img src="/logo.png" alt="Rosana Turci Logo" className="w-10 h-10 rounded-lg" />
+              <img src={logoUrl} alt="Rosana Turci Logo" className="w-10 h-10 rounded-lg" />
               <div>
                 <h2 className="text-lg font-bold text-foreground">Rosana Turci</h2>
                 <p className="text-sm text-muted-foreground font-medium">Estética & Cosmetologia</p>
@@ -69,7 +71,7 @@ export function SalonSidebar() {
             </div>
           )}
           {collapsed && (
-            <img src="/logo.png" alt="Rosana Turci Logo" className="w-10 h-10 rounded-lg mx-auto" />
+            <img src={logoUrl} alt="Rosana Turci Logo" className="w-10 h-10 rounded-lg mx-auto" />
           )}
         </div>
       </SidebarHeader>
