@@ -159,7 +159,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-auto">
+      <DialogContent className="w-[95vw] sm:w-auto sm:max-w-[600px] max-h-[85vh] overflow-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5" />
@@ -167,8 +167,8 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-2">
             <Label>Cliente *</Label>
             <Select 
               value={selectedClientId?.toString() || ""}
@@ -189,10 +189,10 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             </Select>
           </div>
 
-          {/* Restante do formulário permanece o mesmo */}
-          <div className="border rounded-lg p-4 space-y-4">
+          {/* Itens do carrinho */}
+          <div className="border rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4">
             <h3 className="font-semibold">Adicionar Itens ao Carrinho</h3>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button type="button" variant={activeTab === "procedimento" ? "default" : "outline"} onClick={() => { setActiveTab("procedimento"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><Scissors className="w-4 h-4" />Procedimento</Button>
               <Button type="button" variant={activeTab === "pacote" ? "default" : "outline"} onClick={() => { setActiveTab("pacote"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><Package className="w-4 h-4" />Pacote</Button>
               <Button type="button" variant={activeTab === "produto" ? "default" : "outline"} onClick={() => { setActiveTab("produto"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><ShoppingBag className="w-4 h-4" />Produto</Button>
@@ -217,7 +217,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
                 <Label>Quantidade</Label>
                 <Input type="number" min="1" value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} />
@@ -228,15 +228,15 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
               </div>
             </div>
 
-            <Button onClick={addToCart} className="w-full"><Plus className="w-4 h-4 mr-2" />Adicionar ao Carrinho</Button>
+            <Button onClick={addToCart} className="w-full h-11 sm:h-10"><Plus className="w-4 h-4 mr-2" />Adicionar ao Carrinho</Button>
           </div>
 
           {cart.length > 0 && (
             <div className="space-y-4">
               <h3 className="font-semibold">Carrinho ({cart.length} itens)</h3>
               {cart.map((item) => (
-                <Card key={item.id} className="p-4"><CardContent className="p-0">
-                    <div className="flex items-center justify-between">
+                <Card key={item.id} className="p-3 sm:p-4"><CardContent className="p-0">
+                    <div className="flex items-center justify-between gap-3">
                       <div className="flex-1">
                         <h4 className="font-medium">{item.name}</h4>
                         <div className="flex items-center gap-2 mt-1">
@@ -259,7 +259,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
               <Label>Forma de Pagamento *</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -290,9 +290,9 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             <Textarea value={observations} onChange={(e) => setObservations(e.target.value)} placeholder="Observações sobre a venda..." rows={3} />
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleFinalizeSale} className="bg-gradient-primary">Finalizar Venda</Button>
+          <div className="flex flex-col sm:flex-row justify-end gap-2">
+            <Button variant="outline" onClick={onClose} className="h-11 sm:h-10">Cancelar</Button>
+            <Button onClick={handleFinalizeSale} className="bg-gradient-primary h-11 sm:h-10">Finalizar Venda</Button>
           </div>
         </div>
       </DialogContent>

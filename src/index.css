@@ -158,3 +158,20 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile touch improvements */
+@layer base {
+  :root {
+    --tap-size: 44px;
+  }
+
+  button, a, [role="button"], input, select, textarea {
+    min-height: var(--tap-size);
+  }
+
+  /* Better scrolling on mobile */
+  html, body {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}

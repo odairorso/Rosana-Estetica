@@ -43,20 +43,20 @@ export function QuickActions() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
           {actions.map((action, index) => (
             <Button
               key={index}
               variant="ghost"
-              className="h-20 flex-col space-y-2 hover:bg-secondary/50 border border-border/20 rounded-lg transition-all duration-200 hover:shadow-md"
+              className="h-24 sm:h-24 md:h-28 flex-col space-y-2 hover:bg-secondary/50 border border-border/20 rounded-lg transition-all duration-200 hover:shadow-md active:scale-[0.99]"
               asChild
             >
               <a href={action.href}>
-                <div className={`w-8 h-8 rounded-lg ${action.gradient} flex items-center justify-center shadow-sm`}>
-                  <action.icon className="w-4 h-4 text-white" />
+                <div className={`w-10 h-10 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-lg ${action.gradient} flex items-center justify-center shadow-sm`}>
+                  <action.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-medium text-foreground">{action.title}</div>
+                  <div className="text-[13px] sm:text-sm font-medium text-foreground">{action.title}</div>
                 </div>
               </a>
             </Button>
