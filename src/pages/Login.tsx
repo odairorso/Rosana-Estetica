@@ -23,11 +23,11 @@ export default function Login() {
   const handleSignup = async () => {
     setLoading(true);
     setError(null);
-    const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+    const siteUrl = import.meta.env.VITE_AUTH_REDIRECT_URL || (typeof window !== "undefined" ? window.location.origin : undefined);
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: redirectTo },
+      options: { emailRedirectTo: siteUrl },
     });
     setLoading(false);
     if (error) {
@@ -48,8 +48,8 @@ export default function Login() {
     setLoading(true);
     setError(null);
     setInfo(null);
-    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    const siteUrl = import.meta.env.VITE_AUTH_REDIRECT_URL || (typeof window !== "undefined" ? window.location.origin : undefined);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: siteUrl ? `${siteUrl}/reset-password` : undefined });
     setLoading(false);
     if (error) setError(error.message); else setInfo("Verifique seu e-mail para redefinir a senha");
   };
