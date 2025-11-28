@@ -238,13 +238,13 @@ const fetchAppointments = async (): Promise<Appointment[]> => {
 };
 
 const fetchProcedures = async (): Promise<Procedure[]> => {
-  const { data, error } = await supabase.from('procedures').select('*').eq('active', true);
+  const { data, error } = await supabase.from('procedures').select('*').eq('is_active', true);
   if (error) throw new Error(error.message);
   return data || [];
 };
 
 const fetchPackages = async (): Promise<Package[]> => {
-  const { data, error } = await supabase.from('packages').select('*').eq('active', true);
+  const { data, error } = await supabase.from('packages').select('*').eq('is_active', true);
   if (error) throw new Error(error.message);
   return data || [];
 };
@@ -252,7 +252,7 @@ const fetchPackages = async (): Promise<Package[]> => {
 const fetchStoreProducts = async (): Promise<StoreProduct[]> => {
   const { data, error } = await supabase
     .from('store_products')
-    .select('id, name, sku, size, color, category, sale_price, cost_price, stock_quantity, is_active, created_at')
+    .select('id, name, sku, size, color, category, sale_price, cost_price, stock_quantity, is_active, min_stock, max_stock, created_at')
     .eq('is_active', true);
   if (error) throw new Error(error.message);
   const rows = (data || []) as any[];
@@ -267,6 +267,8 @@ const fetchStoreProducts = async (): Promise<StoreProduct[]> => {
     cost_price: row.cost_price !== null && row.cost_price !== undefined ? Number(row.cost_price) : undefined,
     stock: Number(row.stock_quantity || 0),
     active: !!row.is_active,
+    min_stock: row.min_stock !== null && row.min_stock !== undefined ? Number(row.min_stock) : undefined,
+    max_stock: row.max_stock !== null && row.max_stock !== undefined ? Number(row.max_stock) : undefined,
     created_at: row.created_at,
   }));
 };
@@ -278,7 +280,7 @@ const fetchEstheticProducts = async (): Promise<EstheticProduct[]> => {
 };
 
 const fetchStoreSales = async (): Promise<StoreSale[]> => {
-  const { data, error } = await supabase.from('store_sales').select('*').order('date', { ascending: false });
+  const { data, error } = await supabase.from('store_sales').select('*').order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data || [];
 };
