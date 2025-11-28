@@ -16,6 +16,9 @@ import Estoque from "./pages/Estoque";
 import Financeiro from "./pages/Financeiro";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import { useAuth } from "./contexts/AuthContext";
+import { Navigate, useLocation } from "react-router-dom";
 import Relatorio from "./pages/Relatorio";
 
 const queryClient = new QueryClient();
@@ -37,17 +40,17 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/clientes" element={<Clientes />} />
-                <Route path="/agendamentos" element={<Agendamentos />} />
-                <Route path="/pacotes" element={<Pacotes />} />
-                <Route path="/caixa" element={<Caixa />} />
-                <Route path="/procedimentos" element={<Procedimentos />} />
-                <Route path="/estoque" element={<Estoque />} />
-                <Route path="/financeiro" element={<Financeiro />} />
-                <Route path="/financeiro/relatorio" element={<Relatorio />} />
-                <Route path="/configuracoes" element={<Configuracoes />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
+                <Route path="/clientes" element={<RequireAuth><Clientes /></RequireAuth>} />
+                <Route path="/agendamentos" element={<RequireAuth><Agendamentos /></RequireAuth>} />
+                <Route path="/pacotes" element={<RequireAuth><Pacotes /></RequireAuth>} />
+                <Route path="/caixa" element={<RequireAuth><Caixa /></RequireAuth>} />
+                <Route path="/procedimentos" element={<RequireAuth><Procedimentos /></RequireAuth>} />
+                <Route path="/estoque" element={<RequireAuth><Estoque /></RequireAuth>} />
+                <Route path="/financeiro" element={<RequireAuth><Financeiro /></RequireAuth>} />
+                <Route path="/financeiro/relatorio" element={<RequireAuth><Relatorio /></RequireAuth>} />
+                <Route path="/configuracoes" element={<RequireAuth><Configuracoes /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
@@ -59,3 +62,11 @@ const App = () => (
 );
 
 export default App;
+
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const { session, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return null;
+  if (!session) return <Navigate to="/login" state={{ from: location }} replace />;
+  return children;
+}
