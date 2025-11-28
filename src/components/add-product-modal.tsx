@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useSalon } from "@/contexts/SalonContext";
 
 interface AddProductModalProps {
   isOpen: boolean;
@@ -12,13 +13,16 @@ interface AddProductModalProps {
 }
 
 export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
+  const { addStoreProduct } = useSalon();
   const [formData, setFormData] = useState({
     name: "",
+    sku: "",
+    size: "",
+    color: "",
     category: "",
-    quantity: "",
-    minStock: "",
+    stock: "",
     price: "",
-    supplier: "",
+    cost_price: "",
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,20 +41,30 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
     setIsLoading(true);
 
     try {
-      // Aqui você pode adicionar a lógica para salvar no banco de dados
-      // Por enquanto, vou simular um sucesso
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await addStoreProduct({
+        name: formData.name,
+        sku: formData.sku || undefined,
+        size: formData.size || undefined,
+        color: formData.color || undefined,
+        category: formData.category || undefined,
+        price: Number(formData.price || 0),
+        cost_price: formData.cost_price ? Number(formData.cost_price) : undefined,
+        stock: formData.stock ? parseInt(formData.stock, 10) : 0,
+        active: true,
+      });
 
       toast.success("Produto adicionado com sucesso!");
       
       // Reset form
       setFormData({
         name: "",
+        sku: "",
+        size: "",
+        color: "",
         category: "",
-        quantity: "",
-        minStock: "",
+        stock: "",
         price: "",
-        supplier: "",
+        cost_price: "",
       });
       
       onClose();
@@ -88,6 +102,28 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="sku">SKU</Label>
+              <Input id="sku" value={formData.sku} onChange={(e) => handleInputChange("sku", e.target.value)} placeholder="Código do produto" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="size">Tamanho</Label>
+              <Input id="size" value={formData.size} onChange={(e) => handleInputChange("size", e.target.value)} placeholder="Ex: P, M, G" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="color">Cor</Label>
+              <Input id="color" value={formData.color} onChange={(e) => handleInputChange("color", e.target.value)} placeholder="Ex: Azul" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">Categoria</Label>
+              <Input id="category" value={formData.category} onChange={(e) => handleInputChange("category", e.target.value)} placeholder="Ex: Calças" />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="category">Categoria</Label>
             <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
@@ -106,29 +142,12 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantidade</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="0"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange("quantity", e.target.value)}
-                placeholder="0"
-                required
-              />
+              <Label htmlFor="stock">Estoque Inicial</Label>
+              <Input id="stock" type="number" min="0" value={formData.stock} onChange={(e) => handleInputChange("stock", e.target.value)} placeholder="0" />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="minStock">Estoque Mínimo</Label>
-              <Input
-                id="minStock"
-                type="number"
-                min="0"
-                value={formData.minStock}
-                onChange={(e) => handleInputChange("minStock", e.target.value)}
-                placeholder="5"
-                required
-              />
+              <Label htmlFor="cost_price">Custo (R$)</Label>
+              <Input id="cost_price" type="number" step="0.01" min="0" value={formData.cost_price} onChange={(e) => handleInputChange("cost_price", e.target.value)} placeholder="0,00" />
             </div>
           </div>
 
@@ -146,16 +165,7 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="supplier">Fornecedor</Label>
-            <Input
-              id="supplier"
-              value={formData.supplier}
-              onChange={(e) => handleInputChange("supplier", e.target.value)}
-              placeholder="Nome do fornecedor"
-              required
-            />
-          </div>
+          
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>

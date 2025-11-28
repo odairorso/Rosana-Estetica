@@ -1,10 +1,10 @@
-import { DollarSign, Users, Package, Star, TrendingUp, AlertCircle } from "lucide-react";
+import { DollarSign, Users, Package, Star, TrendingUp, Store } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSalon } from "@/contexts/SalonContext";
 
 export function DashboardStats() {
-  const { sales, appointments, clients, isLoadingSales, isLoadingAppointments, isLoadingClients } = useSalon();
+  const { sales, appointments, clients, storeSales, isLoadingSales, isLoadingAppointments, isLoadingClients, isLoadingStoreSales } = useSalon();
 
   // Função para obter a data de hoje no formato YYYY-MM-DD, considerando o fuso horário local
   const getTodayLocalString = () => {
@@ -21,6 +21,17 @@ export function DashboardStats() {
   const todayRevenue = sales
     .filter(sale => sale.date === todayString && sale.status === 'pago')
     .reduce((total, sale) => total + parseFloat(sale.price.replace('R$ ', '').replace(',', '.')), 0);
+
+  const storeTodayRevenue = (storeSales || [])
+    .filter(sale => {
+      const d = new Date(sale.date);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const iso = `${y}-${m}-${day}`;
+      return iso === todayString && sale.status === 'paga';
+    })
+    .reduce((sum, s) => sum + Number(s.total || 0), 0);
 
   // Agendamentos hoje
   const todayAppointments = appointments.filter(appointment => appointment.date === todayString);
@@ -51,6 +62,15 @@ export function DashboardStats() {
       gradient: "bg-gradient-success",
       trend: null,
       loading: isLoadingSales,
+    },
+    {
+      title: "Loja - Faturamento Hoje",
+      value: `R$ ${storeTodayRevenue.toFixed(2).replace('.', ',')}`,
+      subtitle: `${(storeSales || []).filter(s => { const d = new Date(s.date); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}` === todayString; }).length} vendas hoje`,
+      icon: Store,
+      gradient: "bg-gradient-secondary",
+      trend: null,
+      loading: isLoadingStoreSales,
     },
     {
       title: "Clientes Cadastrados",

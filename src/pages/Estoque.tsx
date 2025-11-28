@@ -6,48 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Package, Package2, Plus, AlertTriangle } from "lucide-react";
 import { AddProductModal } from "@/components/add-product-modal";
+import { useSalon } from "@/contexts/SalonContext";
 
-const mockInventory = [
-  {
-    id: 1,
-    name: "Creme Hidratante Facial",
-    category: "Cosméticos",
-    quantity: 15,
-    minStock: 5,
-    price: "R$ 45,00",
-    supplier: "Fornecedor A",
-  },
-  {
-    id: 2,
-    name: "Óleo Essencial Lavanda",
-    category: "Aromaterapia",
-    quantity: 3,
-    minStock: 10,
-    price: "R$ 25,00",
-    supplier: "Fornecedor B",
-  },
-  {
-    id: 3,
-    name: "Máscaras Descartáveis",
-    category: "Materiais",
-    quantity: 50,
-    minStock: 20,
-    price: "R$ 2,00",
-    supplier: "Fornecedor C",
-  },
-  {
-    id: 4,
-    name: "Serum Vitamina C",
-    category: "Cosméticos",
-    quantity: 8,
-    minStock: 5,
-    price: "R$ 80,00",
-    supplier: "Fornecedor A",
-  },
-];
+const formatPrice = (num: number) => `R$ ${num.toFixed(2).replace('.', ',')}`;
 
 const Estoque = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const { storeProducts, isLoadingStoreProducts } = useSalon();
 
   return (
     <SidebarProvider>
@@ -79,7 +44,17 @@ const Estoque = () => {
             </div>
 
             <div className="grid gap-4">
-              {mockInventory.map((item) => (
+              {isLoadingStoreProducts ? (
+                <Card className="bg-gradient-card border-0 shadow-md">
+                  <CardContent className="p-6">Carregando estoque da Loja...</CardContent>
+                </Card>
+              ) : storeProducts.length === 0 ? (
+                <Card className="bg-gradient-card border-0 shadow-md">
+                  <CardContent className="p-6">
+                    Nenhum produto cadastrado na Loja. Clique em "Novo Produto" para adicionar.
+                  </CardContent>
+                </Card>
+              ) : storeProducts.map((item) => (
                 <Card key={item.id} className="bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -89,16 +64,16 @@ const Estoque = () => {
                         </div>
                         <div>
                           <h3 className="text-lg font-semibold text-foreground">{item.name}</h3>
-                          <p className="text-muted-foreground font-medium">{item.category}</p>
-                          <p className="text-sm text-muted-foreground">{item.supplier}</p>
+                          <p className="text-muted-foreground font-medium">{item.category || 'Sem categoria'}</p>
+                          <p className="text-sm text-muted-foreground">{item.color || ''} {item.size || ''}</p>
                         </div>
                       </div>
                       
                       <div className="text-center">
                         <div className="text-lg font-bold text-foreground mb-1">
-                          {item.quantity} unidades
+                          {item.stock} unidades
                         </div>
-                        {item.quantity <= item.minStock && (
+                        {item.stock <= 5 && (
                           <div className="flex items-center text-warning">
                             <AlertTriangle className="w-4 h-4 mr-1" />
                             <span className="text-sm font-medium">Estoque baixo</span>
@@ -107,12 +82,12 @@ const Estoque = () => {
                       </div>
                       
                       <div className="text-right">
-                        <div className="text-lg font-bold text-success mb-2">{item.price}</div>
+                        <div className="text-lg font-bold text-success mb-2">{formatPrice(item.price)}</div>
                         <Badge 
-                          variant={item.quantity > item.minStock ? 'default' : 'destructive'}
-                          className={item.quantity > item.minStock ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}
+                          variant={item.stock > 5 ? 'default' : 'destructive'}
+                          className={item.stock > 5 ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}
                         >
-                          {item.quantity > item.minStock ? 'Em estoque' : 'Estoque baixo'}
+                          {item.stock > 5 ? 'Em estoque' : 'Estoque baixo'}
                         </Badge>
                       </div>
                       
