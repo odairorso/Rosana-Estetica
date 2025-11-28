@@ -13,6 +13,7 @@ import Pacotes from "./pages/Pacotes";
 import Caixa from "./pages/Caixa";
 import Procedimentos from "./pages/Procedimentos";
 import Estoque from "./pages/Estoque";
+import EstoqueLoja from "./pages/EstoqueLoja";
 import Financeiro from "./pages/Financeiro";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
@@ -50,6 +51,7 @@ const App = () => (
                 <Route path="/caixa" element={<RequireAuth><Caixa /></RequireAuth>} />
                 <Route path="/procedimentos" element={<RequireAuth><Procedimentos /></RequireAuth>} />
                 <Route path="/estoque" element={<RequireAuth><Estoque /></RequireAuth>} />
+                <Route path="/estoque-loja" element={<RequireAuth><EstoqueLoja /></RequireAuth>} />
                 <Route path="/financeiro" element={<RequireAuth><Financeiro /></RequireAuth>} />
                 <Route path="/financeiro/relatorio" element={<RequireAuth><Relatorio /></RequireAuth>} />
                 <Route path="/configuracoes" element={<RequireAuth><Configuracoes /></RequireAuth>} />
