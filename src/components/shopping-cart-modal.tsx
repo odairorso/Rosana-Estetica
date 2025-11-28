@@ -52,7 +52,7 @@ interface ShoppingCartModalProps {
 export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) => {
   const { toast } = useToast();
   const { clients, addSale, isLoadingClients, storeProducts, addStoreSale, isLoadingStoreProducts } = useSalon();
-  
+
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
@@ -76,7 +76,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
   const addToCart = () => {
     const currentItems = getCurrentItems();
     const selectedItem = currentItems.find(item => item.id === selectedItemId);
-    
+
     if (!selectedItem || !price) {
       toast({ title: "Erro", description: "Selecione um item e confirme o preço", variant: "destructive" });
       return;
@@ -98,7 +98,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
   };
 
   const updateQuantity = (id: string, change: number) => {
-    setCart(prev => prev.map(item => 
+    setCart(prev => prev.map(item =>
       item.id === id ? { ...item, quantity: Math.max(1, item.quantity + change) } : item
     ));
   };
@@ -151,7 +151,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
       resetForm();
     } else {
       const items: StoreSaleItem[] = cart.map(ci => ({
-        product_id: parseInt(ci.id, 10),
+        product_id: ci.id,
         quantity: ci.quantity,
         unit_price: ci.price,
       }));
@@ -175,10 +175,10 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
           </DialogTitle>
         </DialogHeader>
 
-          <div className="space-y-4 sm:space-y-6">
-            <div className="space-y-2">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-2">
             <Label>Cliente *</Label>
-            <Select 
+            <Select
               value={selectedClientId?.toString() || ""}
               onValueChange={(value) => setSelectedClientId(parseInt(value))}
               disabled={isLoadingClients}
@@ -187,7 +187,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
                 <SelectValue placeholder={isLoadingClients ? "Carregando clientes..." : "Selecione um cliente"} />
               </SelectTrigger>
               <SelectContent>
-                {isLoadingClients && <div className="flex items-center justify-center p-2"><Loader2 className="w-4 h-4 animate-spin"/></div>}
+                {isLoadingClients && <div className="flex items-center justify-center p-2"><Loader2 className="w-4 h-4 animate-spin" /></div>}
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id.toString()}>
                     {client.name} - {client.phone}
@@ -216,8 +216,8 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
 
             <div className="space-y-2">
               <Label>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} *</Label>
-              <Select 
-                value={selectedItemId} 
+              <Select
+                value={selectedItemId}
                 onValueChange={(value) => {
                   setSelectedItemId(value);
                   const selectedItem = getCurrentItems().find(item => item.id === value);
@@ -252,23 +252,23 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
               <h3 className="font-semibold">Carrinho ({cart.length} itens)</h3>
               {cart.map((item) => (
                 <Card key={item.id} className="p-3 sm:p-4"><CardContent className="p-0">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium">{item.name}</h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline">{item.type}</Badge>
-                          {item.sessions && <Badge variant="secondary">{item.sessions} sessões</Badge>}
-                        </div>
-                        <p className="text-sm text-muted-foreground">R$ {item.price.toFixed(2).replace(".", ",")} cada</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1">
+                      <h4 className="font-medium">{item.name}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline">{item.type}</Badge>
+                        {item.sessions && <Badge variant="secondary">{item.sessions} sessões</Badge>}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)}><Minus className="w-3 h-3" /></Button>
-                        <span className="w-8 text-center">{item.quantity}</span>
-                        <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)}><Plus className="w-3 h-3" /></Button>
-                        <Button size="sm" variant="destructive" onClick={() => removeFromCart(item.id)}><Trash2 className="w-3 h-3" /></Button>
-                      </div>
+                      <p className="text-sm text-muted-foreground">R$ {item.price.toFixed(2).replace(".", ",")} cada</p>
                     </div>
-                    <div className="text-right mt-2"><span className="font-semibold">Subtotal: R$ {(item.price * item.quantity).toFixed(2).replace(".", ",")}</span></div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, -1)}><Minus className="w-3 h-3" /></Button>
+                      <span className="w-8 text-center">{item.quantity}</span>
+                      <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, 1)}><Plus className="w-3 h-3" /></Button>
+                      <Button size="sm" variant="destructive" onClick={() => removeFromCart(item.id)}><Trash2 className="w-3 h-3" /></Button>
+                    </div>
+                  </div>
+                  <div className="text-right mt-2"><span className="font-semibold">Subtotal: R$ {(item.price * item.quantity).toFixed(2).replace(".", ",")}</span></div>
                 </CardContent></Card>
               ))}
               <div className="text-right"><div className="text-xl font-bold">Total: R$ {calculateTotal().toFixed(2).replace(".", ",")}</div></div>
