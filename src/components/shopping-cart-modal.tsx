@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, Trash2, ShoppingCart, Scissors, Package, ShoppingBag, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useSalon, Sale } from "@/contexts/SalonContext";
+import { useSalon, Sale, StoreProduct, StoreSaleItem } from "@/contexts/SalonContext";
 
 interface CartItem {
   id: string;
@@ -51,7 +51,7 @@ interface ShoppingCartModalProps {
 
 export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) => {
   const { toast } = useToast();
-  const { clients, addSale, isLoadingClients } = useSalon();
+  const { clients, addSale, isLoadingClients, storeProducts, addStoreSale, isLoadingStoreProducts } = useSalon();
   
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -59,6 +59,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
   const [saleStatus, setSaleStatus] = useState<"pago" | "pendente">("pago");
   const [observations, setObservations] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"procedimento" | "pacote" | "produto">("procedimento");
+  const [scope, setScope] = useState<"estetica" | "loja">("estetica");
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
   const [price, setPrice] = useState<string>("");
@@ -67,7 +68,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
     switch (activeTab) {
       case "procedimento": return availableProcedures;
       case "pacote": return availablePackages;
-      case "produto": return availableProducts;
+      case "produto": return scope === "loja" ? storeProducts.map((p: StoreProduct) => ({ id: String(p.id), name: p.name, price: p.price })) : availableProducts;
       default: return [];
     }
   };
@@ -123,7 +124,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
     onClose();
   }
 
-  const handleFinalizeSale = () => {
+  const handleFinalizeSale = async () => {
     if (!selectedClientId || cart.length === 0 || !paymentMethod || !saleStatus) {
       toast({
         title: "Erro de Validação",
@@ -132,29 +133,36 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
       });
       return;
     }
-
-    // A lógica agora cria uma venda por item no carrinho, como antes,
-    // mas adaptado para a nova estrutura do Supabase.
-    cart.forEach(item => {
-      const sale: Omit<Sale, 'id'> = {
-        client_id: selectedClientId,
-        item: item.name,
-        type: item.type,
-        price: item.price.toString(),
-        date: new Date().toISOString().split('T')[0], // CORREÇÃO AQUI
-        status: saleStatus,
-        sessions: item.sessions,
-        used_sessions: item.type === 'pacote' ? 0 : undefined,
-      };
-      addSale(sale);
-    });
-
-    toast({
-      title: "Venda Finalizada!",
-      description: "A venda foi registrada com sucesso.",
-    });
-
-    resetForm();
+    if (scope === "estetica") {
+      cart.forEach(item => {
+        const sale: Omit<Sale, 'id'> = {
+          client_id: selectedClientId,
+          item: item.name,
+          type: item.type,
+          price: item.price.toString(),
+          date: new Date().toISOString().split('T')[0],
+          status: saleStatus,
+          sessions: item.sessions,
+          used_sessions: item.type === 'pacote' ? 0 : undefined,
+        };
+        addSale(sale);
+      });
+      toast({ title: "Venda Finalizada!", description: "Venda da Estética registrada." });
+      resetForm();
+    } else {
+      const items: StoreSaleItem[] = cart.map(ci => ({
+        product_id: parseInt(ci.id, 10),
+        quantity: ci.quantity,
+        unit_price: ci.price,
+      }));
+      try {
+        await addStoreSale({ client_id: selectedClientId, items, payment_method: paymentMethod, status: saleStatus, note: observations });
+        toast({ title: "Venda Finalizada!", description: "Venda da Loja registrada." });
+        resetForm();
+      } catch (e: any) {
+        toast({ title: "Erro", description: e.message || "Falha ao registrar venda da Loja", variant: "destructive" });
+      }
+    }
   };
 
   return (
@@ -192,6 +200,14 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
           {/* Itens do carrinho */}
           <div className="border rounded-lg p-3 sm:p-4 space-y-3 sm:space-y-4">
             <h3 className="font-semibold">Adicionar Itens ao Carrinho</h3>
+            <div className="flex gap-2">
+              <Button type="button" variant={scope === "estetica" ? "default" : "outline"} onClick={() => { setScope("estetica"); setActiveTab("procedimento"); setSelectedItemId(""); setPrice(""); }}>
+                Estética
+              </Button>
+              <Button type="button" variant={scope === "loja" ? "default" : "outline"} onClick={() => { setScope("loja"); setActiveTab("produto"); setSelectedItemId(""); setPrice(""); }} disabled={isLoadingStoreProducts}>
+                Loja
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant={activeTab === "procedimento" ? "default" : "outline"} onClick={() => { setActiveTab("procedimento"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><Scissors className="w-4 h-4" />Procedimento</Button>
               <Button type="button" variant={activeTab === "pacote" ? "default" : "outline"} onClick={() => { setActiveTab("pacote"); setSelectedItemId(""); setPrice(""); }} className="flex items-center gap-2"><Package className="w-4 h-4" />Pacote</Button>
@@ -210,8 +226,8 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
               >
                 <SelectTrigger><SelectValue placeholder={`Selecione um ${activeTab}...`} /></SelectTrigger>
                 <SelectContent>
-                  {getCurrentItems().map((item) => (
-                    <SelectItem key={item.id} value={item.id}>{item.name} - R$ {item.price.toFixed(2).replace(".", ",")}</SelectItem>
+                  {getCurrentItems().map((item: any) => (
+                    <SelectItem key={item.id} value={item.id}>{item.name} - R$ {Number(item.price).toFixed(2).replace(".", ",")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

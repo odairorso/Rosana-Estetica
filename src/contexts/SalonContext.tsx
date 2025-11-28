@@ -84,6 +84,37 @@ export interface Package {
   created_at: string;
 }
 
+export interface StoreProduct {
+  id: number;
+  name: string;
+  sku?: string;
+  size?: string;
+  color?: string;
+  category?: string;
+  price: number;
+  cost_price?: number;
+  stock: number;
+  active: boolean;
+  created_at: string;
+}
+
+export interface StoreSaleItem {
+  product_id: number;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface StoreSale {
+  id: number;
+  client_id: number | null;
+  date: string;
+  status: 'aberta' | 'paga' | 'cancelada';
+  payment_method?: string;
+  total: number;
+  discount?: number;
+  note?: string;
+}
+
 interface SalonContextType {
   clients: Client[];
   sales: Sale[];
@@ -110,6 +141,13 @@ interface SalonContextType {
   isLoadingAppointments: boolean;
   isLoadingProcedures: boolean;
   isLoadingPackages: boolean;
+  storeProducts: StoreProduct[];
+  storeSales: StoreSale[];
+  isLoadingStoreProducts: boolean;
+  isLoadingStoreSales: boolean;
+  addStoreProduct: (product: Omit<StoreProduct, 'id' | 'created_at' | 'stock' | 'active'> & { stock?: number; active?: boolean }) => Promise<void>;
+  updateStoreProduct: (id: number, updates: Partial<StoreProduct>) => Promise<void>;
+  addStoreSale: (payload: { client_id: number | null; items: StoreSaleItem[]; payment_method: string; status: 'paga' | 'pendente'; discount?: number; note?: string }) => Promise<void>;
 }
 
 const SalonContext = createContext<SalonContextType | undefined>(undefined);
@@ -183,6 +221,18 @@ const fetchPackages = async (): Promise<Package[]> => {
   return data || [];
 };
 
+const fetchStoreProducts = async (): Promise<StoreProduct[]> => {
+  const { data, error } = await supabase.from('store_products').select('*').eq('active', true);
+  if (error) throw new Error(error.message);
+  return data || [];
+};
+
+const fetchStoreSales = async (): Promise<StoreSale[]> => {
+  const { data, error } = await supabase.from('store_sales').select('*').order('date', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data || [];
+};
+
 export function SalonProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
@@ -224,6 +274,16 @@ export function SalonProvider({ children }: { children: ReactNode }) {
   const { data: packages = [], isLoading: isLoadingPackages } = useQuery<Package[]>({
     queryKey: ['packages'],
     queryFn: fetchPackages,
+  });
+
+  const { data: storeProducts = [], isLoading: isLoadingStoreProducts } = useQuery<StoreProduct[]>({
+    queryKey: ['store_products'],
+    queryFn: fetchStoreProducts,
+  });
+
+  const { data: storeSales = [], isLoading: isLoadingStoreSales } = useQuery<StoreSale[]>({
+    queryKey: ['store_sales'],
+    queryFn: fetchStoreSales,
   });
 
   // Mutations
@@ -268,6 +328,75 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
+  const addStoreProductMutation = useMutation({
+    mutationFn: async (product: Omit<StoreProduct, 'id' | 'created_at' | 'stock' | 'active'> & { stock?: number; active?: boolean }) => {
+      const payload = {
+        name: product.name,
+        sku: product.sku,
+        size: product.size,
+        color: product.color,
+        category: product.category,
+        price: product.price,
+        cost_price: product.cost_price,
+        stock: product.stock ?? 0,
+        active: product.active ?? true,
+      } as any;
+      const { error } = await supabase.from('store_products').insert([payload]);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['store_products'] });
+    },
+  });
+
+  const updateStoreProductMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<StoreProduct> }) => {
+      const allowed: Record<string, any> = {};
+      if (updates.name !== undefined) allowed.name = updates.name;
+      if (updates.sku !== undefined) allowed.sku = updates.sku;
+      if (updates.size !== undefined) allowed.size = updates.size;
+      if (updates.color !== undefined) allowed.color = updates.color;
+      if (updates.category !== undefined) allowed.category = updates.category;
+      if (updates.price !== undefined) allowed.price = updates.price;
+      if (updates.cost_price !== undefined) allowed.cost_price = updates.cost_price;
+      if (updates.stock !== undefined) allowed.stock = updates.stock;
+      if (updates.active !== undefined) allowed.active = updates.active;
+      const { error } = await supabase.from('store_products').update(allowed).eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['store_products'] });
+    },
+  });
+
+  const addStoreSaleMutation = useMutation({
+    mutationFn: async (payload: { client_id: number | null; items: StoreSaleItem[]; payment_method: string; status: 'paga' | 'pendente'; discount?: number; note?: string }) => {
+      const total = payload.items.reduce((sum, it) => sum + it.unit_price * it.quantity, 0) - (payload.discount || 0);
+      const { data: saleRow, error: saleError } = await supabase
+        .from('store_sales')
+        .insert([{ client_id: payload.client_id, status: payload.status === 'paga' ? 'paga' : 'aberta', payment_method: payload.payment_method, total, discount: payload.discount || 0, note: payload.note }])
+        .select()
+        .single();
+      if (saleError) throw new Error(saleError.message);
+      const saleId = saleRow.id as number;
+
+      const itemsPayload = payload.items.map(it => ({ sale_id: saleId, product_id: it.product_id, quantity: it.quantity, unit_price: it.unit_price, subtotal: it.unit_price * it.quantity }));
+      const { error: itemsError } = await supabase.from('store_sale_items').insert(itemsPayload);
+      if (itemsError) throw new Error(itemsError.message);
+
+      const movements = payload.items.map(it => ({ product_id: it.product_id, type: 'saida', quantity: it.quantity }));
+      const { error: moveError } = await supabase.from('store_inventory_movements').insert(movements);
+      if (moveError) throw new Error(moveError.message);
+
+      const { error: finError } = await supabase.from('financial_transactions').insert([{ scope: 'loja', source: 'sale', source_id: saleId, type: 'receita', method: payload.payment_method, amount: total, status: payload.status === 'paga' ? 'pago' : 'pendente' }]);
+      if (finError) throw new Error(finError.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['store_sales'] });
+      queryClient.invalidateQueries({ queryKey: ['store_products'] });
     },
   });
 
@@ -482,6 +611,34 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     isLoadingAppointments,
     isLoadingProcedures,
     isLoadingPackages,
+    storeProducts,
+    storeSales,
+    isLoadingStoreProducts,
+    isLoadingStoreSales,
+    addStoreProduct: async (product) => {
+      return new Promise((resolve, reject) => {
+        addStoreProductMutation.mutate(product, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    updateStoreProduct: async (id, updates) => {
+      return new Promise((resolve, reject) => {
+        updateStoreProductMutation.mutate({ id, updates }, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    addStoreSale: async (payload) => {
+      return new Promise((resolve, reject) => {
+        addStoreSaleMutation.mutate(payload, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
   };
 
   return (
