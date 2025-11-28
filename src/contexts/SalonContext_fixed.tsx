@@ -241,6 +241,43 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Mutations para clientes
+  const addClientMutation = useMutation({
+    mutationFn: async (client: Omit<Client, 'id'>) => {
+      const { data, error } = await supabase.from('clients').insert([client]).select();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
+  const updateClientMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<Client> }) => {
+      const { data, error } = await supabase
+        .from('clients')
+        .update(updates)
+        .eq('id', id)
+        .select();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
+  const deleteClientMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from('clients').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
   // Mutations para adicionar venda da loja
   const addStoreSaleMutation = useMutation({
     mutationFn: async (payload: { 
