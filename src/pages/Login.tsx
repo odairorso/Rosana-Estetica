@@ -10,6 +10,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -29,7 +30,28 @@ export default function Login() {
       options: { emailRedirectTo: redirectTo },
     });
     setLoading(false);
-    if (error) setError(error.message);
+    if (error) {
+      const msg = error.message || "Erro no cadastro";
+      setError(msg);
+      if (msg.toLowerCase().includes("registered") || msg.toLowerCase().includes("cadastrado")) {
+        setInfo("Usuário já cadastrado. Faça login.");
+        setMode("login");
+      }
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError("Informe seu e-mail para recuperar a senha");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    setLoading(false);
+    if (error) setError(error.message); else setInfo("Verifique seu e-mail para redefinir a senha");
   };
 
   return (
@@ -62,6 +84,7 @@ export default function Login() {
               placeholder="seu-email@exemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               required
             />
             <Input
@@ -69,13 +92,20 @@ export default function Login() {
               placeholder="sua senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               required
             />
             {error && <p className="text-red-600 text-sm">{error}</p>}
+            {info && <p className="text-green-600 text-sm">{info}</p>}
             <Button type="submit" className="w-full" disabled={loading || !email || !password}>
               {mode === "login" ? (loading ? "Entrando..." : "Entrar") : (loading ? "Cadastrando..." : "Cadastrar")}
             </Button>
           </form>
+          <div className="mt-3 text-center">
+            <button className="text-sm text-muted-foreground underline" onClick={handleForgotPassword} disabled={loading}>
+              Esqueci minha senha
+            </button>
+          </div>
         </CardContent>
       </Card>
     </div>

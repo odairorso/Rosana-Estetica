@@ -29,6 +29,8 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useSalon } from "@/contexts/SalonContext";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, color: "text-blue-500" },
@@ -46,6 +48,7 @@ export function SalonSidebar() {
   const { state, toggleSidebar } = useSidebar();
   const { logoUrl } = useSalon();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
@@ -113,6 +116,14 @@ export function SalonSidebar() {
         <div className="flex justify-center">
           <ThemeToggle />
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={async () => { await supabase.auth.signOut(); navigate("/login"); }}
+          className="w-full justify-center hover:bg-secondary/50 text-foreground font-medium"
+        >
+          Sair
+        </Button>
         <Button
           variant="ghost"
           size="sm"

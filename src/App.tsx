@@ -17,6 +17,7 @@ import Financeiro from "./pages/Financeiro";
 import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import { useAuth } from "./contexts/AuthContext";
 import { Navigate, useLocation } from "react-router-dom";
 import Relatorio from "./pages/Relatorio";
@@ -41,6 +42,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
                 <Route path="/clientes" element={<RequireAuth><Clientes /></RequireAuth>} />
                 <Route path="/agendamentos" element={<RequireAuth><Agendamentos /></RequireAuth>} />
