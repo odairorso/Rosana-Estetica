@@ -250,9 +250,25 @@ const fetchPackages = async (): Promise<Package[]> => {
 };
 
 const fetchStoreProducts = async (): Promise<StoreProduct[]> => {
-  const { data, error } = await supabase.from('store_products').select('*').eq('active', true);
+  const { data, error } = await supabase
+    .from('store_products')
+    .select('id, name, sku, size, color, category, sale_price, cost_price, stock_quantity, is_active, created_at')
+    .eq('is_active', true);
   if (error) throw new Error(error.message);
-  return data || [];
+  const rows = (data || []) as any[];
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    sku: row.sku || undefined,
+    size: row.size || undefined,
+    color: row.color || undefined,
+    category: row.category || undefined,
+    price: Number(row.sale_price || 0),
+    cost_price: row.cost_price !== null && row.cost_price !== undefined ? Number(row.cost_price) : undefined,
+    stock: Number(row.stock_quantity || 0),
+    active: !!row.is_active,
+    created_at: row.created_at,
+  }));
 };
 
 const fetchEstheticProducts = async (): Promise<EstheticProduct[]> => {
@@ -378,10 +394,10 @@ export function SalonProvider({ children }: { children: ReactNode }) {
         size: product.size,
         color: product.color,
         category: product.category,
-        price: product.price,
+        sale_price: product.price,
         cost_price: product.cost_price,
-        stock: product.stock ?? 0,
-        active: product.active ?? true,
+        stock_quantity: product.stock ?? 0,
+        is_active: product.active ?? true,
       } as any;
       const { error } = await supabase.from('store_products').insert([payload]);
       if (error) throw new Error(error.message);
@@ -399,10 +415,10 @@ export function SalonProvider({ children }: { children: ReactNode }) {
       if (updates.size !== undefined) allowed.size = updates.size;
       if (updates.color !== undefined) allowed.color = updates.color;
       if (updates.category !== undefined) allowed.category = updates.category;
-      if (updates.price !== undefined) allowed.price = updates.price;
+      if (updates.price !== undefined) allowed.sale_price = updates.price;
       if (updates.cost_price !== undefined) allowed.cost_price = updates.cost_price;
-      if (updates.stock !== undefined) allowed.stock = updates.stock;
-      if (updates.active !== undefined) allowed.active = updates.active;
+      if (updates.stock !== undefined) allowed.stock_quantity = updates.stock;
+      if (updates.active !== undefined) allowed.is_active = updates.active;
       const { error } = await supabase.from('store_products').update(allowed).eq('id', id);
       if (error) throw new Error(error.message);
     },
