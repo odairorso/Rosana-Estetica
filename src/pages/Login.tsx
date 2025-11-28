@@ -38,6 +38,11 @@ export default function Login() {
         setMode("login");
       }
     }
+    else {
+      await supabase.auth.signOut();
+      setInfo("Conta criada. Faça login.");
+      setMode("login");
+    }
   };
 
   const handleForgotPassword = async () => {
