@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Package, Edit, Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Search, Package, Edit, Trash2, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import { useSalon } from "@/contexts/SalonContext";
 import { StoreProduct } from "@/contexts/SalonContext";
 import { AddProductModal } from "@/components/add-product-modal";
