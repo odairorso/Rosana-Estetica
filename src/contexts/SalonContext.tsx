@@ -108,62 +108,47 @@ export interface EstheticProduct {
   description: string;
   unit: string;
   cost_price: number;
-  sale_price: number;
-  stock_quantity: number;
-  min_stock: number;
-  max_stock: number;
-  supplier: string;
-  barcode?: string;
-  location: string;
-});
+  status: string;
+  note?: string;
+  discount_amount?: number;
+}) => {
+  // Inserir a venda na tabela store_sales
+  const { data: saleData, error: saleError } = await supabase
+    .from('store_sales')
+    .insert([{
+      client_id: payload.client_id,
+      payment_method: payload.payment_method,
+      payment_status: payload.status === 'paga' ? 'paid' : 'pending', // Mapear para os valores do banco
+      notes: payload.note || '',
+      discount_amount: payload.discount_amount || 0,
+      total_amount: payload.items.reduce((total, item) => total + (item.quantity * item.unit_price), 0) - (payload.discount_amount || 0)
+    }])
+    .select()
+    .single();
 
-// Mutation para adicionar venda da loja
-const addStoreSaleMutation = useMutation({
-  mutationFn: async (payload: {
-    client_id: number;
-    items: StoreSaleItem[];
-    payment_method: string;
-    status: string;
-    note?: string;
-    discount_amount?: number;
-  }) => {
-    // Inserir a venda na tabela store_sales
-    const { data: saleData, error: saleError } = await supabase
-      .from('store_sales')
-      .insert([{
-        client_id: payload.client_id,
-        payment_method: payload.payment_method,
-        payment_status: payload.status === 'paga' ? 'paid' : 'pending', // Mapear para os valores do banco
-        notes: payload.note || '',
-        discount_amount: payload.discount_amount || 0,
-        total_amount: payload.items.reduce((total, item) => total + (item.quantity * item.unit_price), 0) - (payload.discount_amount || 0)
-      }])
-      .select()
-      .single();
+  if (saleError) throw new Error(saleError.message);
 
-    if (saleError) throw new Error(saleError.message);
+  // Inserir os itens da venda na tabela store_sale_items
+  const saleItems = payload.items.map(item => ({
+    sale_id: saleData.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    total_price: item.quantity * item.unit_price // Nome correto da coluna
+  }));
 
-    // Inserir os itens da venda na tabela store_sale_items
-    const saleItems = payload.items.map(item => ({
-      sale_id: saleData.id,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      total_price: item.quantity * item.unit_price // Nome correto da coluna
-    }));
+  const { error: itemsError } = await supabase
+    .from('store_sale_items')
+    .insert(saleItems);
 
-    const { error: itemsError } = await supabase
-      .from('store_sale_items')
-      .insert(saleItems);
+  if (itemsError) throw new Error(itemsError.message);
 
-    if (itemsError) throw new Error(itemsError.message);
-
-    return saleData;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['store_sales'] });
-    queryClient.invalidateQueries({ queryKey: ['store_products'] });
-  },
+  return saleData;
+},
+onSuccess: () => {
+  queryClient.invalidateQueries({ queryKey: ['store_sales'] });
+  queryClient.invalidateQueries({ queryKey: ['store_products'] });
+},
 });
 
 // Mutations para produtos estéticos
