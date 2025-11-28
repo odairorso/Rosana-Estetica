@@ -449,66 +449,6 @@ export function SalonProvider({ children }: { children: ReactNode }) {
         },
     });
 
-    // Mutation para adicionar venda da loja
-    const addStoreSaleMutation = useMutation({
-        mutationFn: async (payload: {
-            client_id: number;
-            items: StoreSaleItem[];
-            payment_method: string;
-            status: string;
-            note?: string;
-            discount_amount?: number;
-        }) => {
-            // Inserir a venda na tabela store_sales
-            const { data: saleData, error: saleError } = await supabase
-                .from('store_sales')
-                .insert([{
-                    client_id: payload.client_id,
-                    payment_method: payload.payment_method,
-                    payment_status: payload.status === 'paga' ? 'paid' : 'pending', // Mapear para os valores do banco
-                    notes: payload.note || '',
-                    discount_amount: payload.discount_amount || 0,
-                    total_amount: payload.items.reduce((total, item) => total + (item.quantity * item.unit_price), 0) - (payload.discount_amount || 0)
-                }])
-                .select()
-                .single();
-
-            if (saleError) throw new Error(saleError.message);
-
-            // Inserir os itens da venda na tabela store_sale_items
-            const saleItems = payload.items.map(item => ({
-                sale_id: saleData.id,
-                product_id: item.product_id,
-                quantity: item.quantity,
-                unit_price: item.unit_price,
-                total_price: item.quantity * item.unit_price // Nome correto da coluna
-            }));
-
-            const { error: itemsError } = await supabase
-                .from('store_sale_items')
-                .insert(saleItems);
-
-            if (itemsError) throw new Error(itemsError.message);
-
-            return saleData;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['store_sales'] });
-            queryClient.invalidateQueries({ queryKey: ['store_products'] });
-        },
-    });
-
-    // Mutations para produtos estéticos
-    const addEstheticProductMutation = useMutation({
-        mutationFn: async (product: Omit<EstheticProduct, 'id' | 'created_at' | 'updated_at'>) => {
-            const { error } = await supabase.from('esthetic_products').insert([product]);
-            if (error) throw new Error(error.message);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['esthetic_products'] });
-        },
-    });
-
     const updateEstheticProductMutation = useMutation({
         mutationFn: async ({ id, updates }: { id: string; updates: Partial<EstheticProduct> }) => {
             const allowed: Record<string, any> = {};
