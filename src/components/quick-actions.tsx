@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Scissors, Package2, DollarSign, Plus } from "lucide-react";
+import { Users, Scissors, Package2, DollarSign as DollarSignIcon, Plus } from "lucide-react";
 
 const actions = [
   {
@@ -26,7 +26,7 @@ const actions = [
   },
   {
     title: "Financeiro",
-    icon: DollarSign,
+    icon: DollarSignIcon,
     gradient: "bg-gradient-primary",
     action: "Ver Relatórios",
     href: "/financeiro",

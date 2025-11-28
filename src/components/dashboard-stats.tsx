@@ -1,4 +1,4 @@
-import { DollarSign, Users, Package, Star, TrendingUp, Store, Sparkles } from "lucide-react";
+import { DollarSign as DollarSignIcon, Users, Package, Star, TrendingUp, Store, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSalon } from "@/contexts/SalonContext";
@@ -61,7 +61,7 @@ export function DashboardStats() {
       title: "Faturamento Hoje",
       value: `R$ ${todayRevenue.toFixed(2).replace('.', ',')}`,
       subtitle: `${todayAppointments.length} atendimentos hoje`,
-      icon: DollarSign,
+      icon: DollarSignIcon,
       gradient: "bg-gradient-success",
       trend: null,
       loading: isLoadingSales,

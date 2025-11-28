@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, DollarSign, Edit, Calendar, Sparkles } from "lucide-react";
+import { Clock, DollarSign as DollarSignIcon, Edit, Calendar, Sparkles } from "lucide-react";
 import { useSalon } from "@/contexts/SalonContext";
 import { ScheduleProcedureModal } from "@/components/schedule-procedure-modal";
 import { AddProcedureModal } from "@/components/add-procedure-modal";
@@ -85,7 +85,7 @@ export default function Procedimentos() {
                     {procedure.duration_minutes} min
                   </div>
                   <div className="flex items-center font-semibold text-green-600">
-                    <DollarSign className="w-4 h-4 mr-1" />
+                    <DollarSignIcon className="w-4 h-4 mr-1" />
                     R$ {procedure.price.toFixed(2)}
                   </div>
                 </div>
