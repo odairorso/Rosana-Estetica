@@ -2,7 +2,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SalonSidebar } from "@/components/salon-sidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Plus, TrendingUp } from "lucide-react";
+import { DollarSign as DollarSignIcon, Plus, TrendingUp } from "lucide-react";
 
 const Financeiro = () => {
   return (
@@ -35,7 +35,7 @@ const Financeiro = () => {
 
             <Card className="bg-gradient-card border-0 shadow-md">
               <CardContent className="p-8 text-center">
-                <DollarSign className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <DollarSignIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">Página Pronta para Teste</h3>
                 <p className="text-muted-foreground">Esta página foi criada e está pronta para implementações de teste.</p>
               </CardContent>
