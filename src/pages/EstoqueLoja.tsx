@@ -60,15 +60,15 @@ export default function EstoqueLoja() {
   };
 
   const totalValue = filteredProducts.reduce((sum, product) => 
-    sum + (product.stock_quantity * product.sale_price), 0
+    sum + (product.stock * product.price), 0
   );
 
   const lowStockProducts = filteredProducts.filter(product => 
-    product.stock_quantity <= product.min_stock && product.stock_quantity > 0
+    product.stock <= (product.min_stock || 5) && product.stock > 0
   );
 
   const outOfStockProducts = filteredProducts.filter(product => 
-    product.stock_quantity === 0
+    product.stock === 0
   );
 
   return (
@@ -144,7 +144,7 @@ export default function EstoqueLoja() {
       {/* Lista de Produtos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredProducts.map((product) => {
-          const stockStatus = getStockStatus(product.stock_quantity, product.min_stock);
+          const stockStatus = getStockStatus(product.stock, product.min_stock || 5);
           
           return (
             <Card key={product.id} className="hover:shadow-lg transition-shadow">
@@ -168,27 +168,27 @@ export default function EstoqueLoja() {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Estoque:</span>
                   <span className={`font-semibold ${
-                    product.stock_quantity <= 0 ? 'text-red-500' : 
-                    product.stock_quantity <= product.min_stock ? 'text-orange-500' : 'text-green-500'
+                    product.stock <= 0 ? 'text-red-500' : 
+                    product.stock <= (product.min_stock || 5) ? 'text-orange-500' : 'text-green-500'
                   }`}>
-                    {product.stock_quantity} un
+                    {product.stock} un
                   </span>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Preço de Custo:</span>
-                  <span className="font-semibold">R$ {product.cost_price.toFixed(2)}</span>
+                  <span className="font-semibold">R$ {(product.cost_price || 0).toFixed(2)}</span>
                 </div>
                 
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Preço de Venda:</span>
-                  <span className="font-semibold text-green-600">R$ {product.sale_price.toFixed(2)}</span>
+                  <span className="font-semibold text-green-600">R$ {product.price.toFixed(2)}</span>
                 </div>
 
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Margem:</span>
                   <span className="font-semibold">
-                    {((product.sale_price - product.cost_price) / product.sale_price * 100).toFixed(0)}%
+                    {product.cost_price ? (((product.price - product.cost_price) / product.price * 100).toFixed(0) + '%') : 'N/A'}
                   </span>
                 </div>
 

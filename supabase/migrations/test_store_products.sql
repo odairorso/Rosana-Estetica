@@ -1,0 +1,7 @@
+-- Inserir produtos de teste para a loja
+INSERT INTO public.store_products (id, name, sku, category, size, color, description, cost_price, sale_price, stock_quantity, min_stock, max_stock, supplier, barcode, location, is_active, created_at, updated_at) VALUES
+('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'Camiseta Básica Branca', 'CAM-BAS-WHI', 'Camisetas', 'M', 'Branco', 'Camiseta básica de algodão 100%', 15.00, 29.90, 25, 10, 100, 'Fornecedor Textil', '1234567890123', 'A1-P1', true, NOW(), NOW()),
+('b2c3d4e5-f6a7-8901-bcde-f23456789012', 'Calça Jeans Skinny', 'CAL-JEA-SKI', 'Calças', '38', 'Azul', 'Calça jeans modelo skinny stretch', 45.00, 89.90, 15, 5, 50, 'Jeans Wear', '2345678901234', 'B2-P3', true, NOW(), NOW()),
+('c3d4e5f6-a7b8-9012-cdef-345678901234', 'Vestido Floral', 'VES-FLO-MID', 'Vestidos', 'P', 'Colorido', 'Vestido midi com estampa floral', 35.00, 79.90, 8, 3, 30, 'Moda Feminina', '3456789012345', 'C1-P2', true, NOW(), NOW()),
+('d4e5f6a7-b8c9-0123-defa-456789012345', 'Blusa de Frio Moletom', 'BLU-MOL-GRA', 'Blusas', 'G', 'Cinza', 'Blusa de frio em moletom com capuz', 40.00, 99.90, 12, 5, 40, 'Winter Wear', '4567890123456', 'D3-P1', true, NOW(), NOW()),
+('e5f6a7b8-c9d0-1234-efab-567890123456', 'Saia Plissada Preta', 'SAI-PLI-BLA', 'Saias', 'M', 'Preto', 'Saia plissada de comprimento médio', 25.00, 59.90, 20, 8, 60, 'Fashion Skirts', '5678901234567', 'E2-P4', true, NOW(), NOW());

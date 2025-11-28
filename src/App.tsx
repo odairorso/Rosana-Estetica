@@ -70,7 +70,11 @@ export default App;
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { session, loading } = useAuth();
   const location = useLocation();
-  if (loading) return null;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-muted-foreground">Carregando...</div>
+    </div>
+  );
   if (!session) return <Navigate to="/login" state={{ from: location }} replace />;
   return children;
 }

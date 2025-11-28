@@ -85,7 +85,7 @@ export interface Package {
 }
 
 export interface StoreProduct {
-  id: number;
+  id: string; // UUID
   name: string;
   sku?: string;
   size?: string;
@@ -96,6 +96,27 @@ export interface StoreProduct {
   stock: number;
   active: boolean;
   created_at: string;
+}
+
+export interface EstheticProduct {
+  id: string; // UUID
+  name: string;
+  category: string;
+  brand: string;
+  description: string;
+  unit: string;
+  cost_price: number;
+  sale_price: number;
+  stock_quantity: number;
+  min_stock: number;
+  max_stock: number;
+  supplier: string;
+  barcode?: string;
+  location: string;
+  expiration_date?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface StoreSaleItem {
@@ -146,8 +167,15 @@ interface SalonContextType {
   isLoadingStoreProducts: boolean;
   isLoadingStoreSales: boolean;
   addStoreProduct: (product: Omit<StoreProduct, 'id' | 'created_at' | 'stock' | 'active'> & { stock?: number; active?: boolean }) => Promise<void>;
-  updateStoreProduct: (id: number, updates: Partial<StoreProduct>) => Promise<void>;
+  updateStoreProduct: (id: string, updates: Partial<StoreProduct>) => Promise<void>;
+  deleteStoreProduct: (id: string) => Promise<void>;
   addStoreSale: (payload: { client_id: number | null; items: StoreSaleItem[]; payment_method: string; status: 'paga' | 'pendente'; discount?: number; note?: string }) => Promise<void>;
+  estheticProducts: EstheticProduct[];
+  isLoadingEstheticProducts: boolean;
+  fetchEstheticProducts: () => Promise<void>;
+  addEstheticProduct: (product: Omit<EstheticProduct, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateEstheticProduct: (id: string, updates: Partial<EstheticProduct>) => Promise<void>;
+  deleteEstheticProduct: (id: string) => Promise<void>;
 }
 
 const SalonContext = createContext<SalonContextType | undefined>(undefined);
@@ -227,6 +255,12 @@ const fetchStoreProducts = async (): Promise<StoreProduct[]> => {
   return data || [];
 };
 
+const fetchEstheticProducts = async (): Promise<EstheticProduct[]> => {
+  const { data, error } = await supabase.from('esthetic_products').select('*').eq('is_active', true);
+  if (error) throw new Error(error.message);
+  return data || [];
+};
+
 const fetchStoreSales = async (): Promise<StoreSale[]> => {
   const { data, error } = await supabase.from('store_sales').select('*').order('date', { ascending: false });
   if (error) throw new Error(error.message);
@@ -286,6 +320,11 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     queryFn: fetchStoreSales,
   });
 
+  const { data: estheticProducts = [], isLoading: isLoadingEstheticProducts } = useQuery<EstheticProduct[]>({
+    queryKey: ['esthetic_products'],
+    queryFn: fetchEstheticProducts,
+  });
+
   // Mutations
   const addClientMutation = useMutation({
     mutationFn: addClient,
@@ -322,7 +361,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
   });
 
   const deleteClientMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       const { error } = await supabase.from('clients').delete().eq('id', id);
       if (error) throw new Error(error.message);
     },
@@ -353,7 +392,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
   });
 
   const updateStoreProductMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: number; updates: Partial<StoreProduct> }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<StoreProduct> }) => {
       const allowed: Record<string, any> = {};
       if (updates.name !== undefined) allowed.name = updates.name;
       if (updates.sku !== undefined) allowed.sku = updates.sku;
@@ -365,6 +404,16 @@ export function SalonProvider({ children }: { children: ReactNode }) {
       if (updates.stock !== undefined) allowed.stock = updates.stock;
       if (updates.active !== undefined) allowed.active = updates.active;
       const { error } = await supabase.from('store_products').update(allowed).eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['store_products'] });
+    },
+  });
+
+  const deleteStoreProductMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('store_products').delete().eq('id', id);
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
@@ -397,6 +446,54 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['store_sales'] });
       queryClient.invalidateQueries({ queryKey: ['store_products'] });
+    },
+  });
+
+  // Mutations para produtos estéticos
+  const addEstheticProductMutation = useMutation({
+    mutationFn: async (product: Omit<EstheticProduct, 'id' | 'created_at' | 'updated_at'>) => {
+      const { error } = await supabase.from('esthetic_products').insert([product]);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['esthetic_products'] });
+    },
+  });
+
+  const updateEstheticProductMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<EstheticProduct> }) => {
+      const allowed: Record<string, any> = {};
+      if (updates.name !== undefined) allowed.name = updates.name;
+      if (updates.category !== undefined) allowed.category = updates.category;
+      if (updates.brand !== undefined) allowed.brand = updates.brand;
+      if (updates.description !== undefined) allowed.description = updates.description;
+      if (updates.unit !== undefined) allowed.unit = updates.unit;
+      if (updates.cost_price !== undefined) allowed.cost_price = updates.cost_price;
+      if (updates.sale_price !== undefined) allowed.sale_price = updates.sale_price;
+      if (updates.stock_quantity !== undefined) allowed.stock_quantity = updates.stock_quantity;
+      if (updates.min_stock !== undefined) allowed.min_stock = updates.min_stock;
+      if (updates.max_stock !== undefined) allowed.max_stock = updates.max_stock;
+      if (updates.supplier !== undefined) allowed.supplier = updates.supplier;
+      if (updates.barcode !== undefined) allowed.barcode = updates.barcode;
+      if (updates.location !== undefined) allowed.location = updates.location;
+      if (updates.expiration_date !== undefined) allowed.expiration_date = updates.expiration_date;
+      if (updates.is_active !== undefined) allowed.is_active = updates.is_active;
+      
+      const { error } = await supabase.from('esthetic_products').update(allowed).eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['esthetic_products'] });
+    },
+  });
+
+  const deleteEstheticProductMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('esthetic_products').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['esthetic_products'] });
     },
   });
 
@@ -631,9 +728,49 @@ export function SalonProvider({ children }: { children: ReactNode }) {
         });
       });
     },
+    deleteStoreProduct: async (id) => {
+      return new Promise((resolve, reject) => {
+        deleteStoreProductMutation.mutate(id, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
     addStoreSale: async (payload) => {
       return new Promise((resolve, reject) => {
         addStoreSaleMutation.mutate(payload, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    estheticProducts,
+    isLoadingEstheticProducts,
+    fetchEstheticProducts: async () => {
+      return new Promise((resolve, reject) => {
+        queryClient.invalidateQueries({ queryKey: ['esthetic_products'] });
+        resolve();
+      });
+    },
+    addEstheticProduct: async (product) => {
+      return new Promise((resolve, reject) => {
+        addEstheticProductMutation.mutate(product, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    updateEstheticProduct: async (id, updates) => {
+      return new Promise((resolve, reject) => {
+        updateEstheticProductMutation.mutate({ id, updates }, {
+          onSuccess: () => resolve(),
+          onError: (error) => reject(error),
+        });
+      });
+    },
+    deleteEstheticProduct: async (id) => {
+      return new Promise((resolve, reject) => {
+        deleteEstheticProductMutation.mutate(id, {
           onSuccess: () => resolve(),
           onError: (error) => reject(error),
         });

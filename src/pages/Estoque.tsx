@@ -12,7 +12,7 @@ const formatPrice = (num: number) => `R$ ${num.toFixed(2).replace('.', ',')}`;
 
 const Estoque = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const { storeProducts, isLoadingStoreProducts } = useSalon();
+  const { estheticProducts, isLoadingEstheticProducts } = useSalon();
 
   return (
     <SidebarProvider>
@@ -44,17 +44,17 @@ const Estoque = () => {
             </div>
 
             <div className="grid gap-4">
-              {isLoadingStoreProducts ? (
+              {isLoadingEstheticProducts ? (
                 <Card className="bg-gradient-card border-0 shadow-md">
-                  <CardContent className="p-6">Carregando estoque da Loja...</CardContent>
+                  <CardContent className="p-6">Carregando estoque de Estética...</CardContent>
                 </Card>
-              ) : storeProducts.length === 0 ? (
+              ) : estheticProducts.length === 0 ? (
                 <Card className="bg-gradient-card border-0 shadow-md">
                   <CardContent className="p-6">
-                    Nenhum produto cadastrado na Loja. Clique em "Novo Produto" para adicionar.
+                    Nenhum produto cadastrado no estoque de Estética. Clique em "Novo Produto" para adicionar.
                   </CardContent>
                 </Card>
-              ) : storeProducts.map((item) => (
+              ) : estheticProducts.map((item) => (
                 <Card key={item.id} className="bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -64,16 +64,16 @@ const Estoque = () => {
                         </div>
                         <div>
                           <h3 className="text-lg font-semibold text-foreground">{item.name}</h3>
-                          <p className="text-muted-foreground font-medium">{item.category || 'Sem categoria'}</p>
-                          <p className="text-sm text-muted-foreground">{item.color || ''} {item.size || ''}</p>
+                          <p className="text-muted-foreground font-medium">{item.category} - {item.brand}</p>
+                          <p className="text-sm text-muted-foreground">{item.description}</p>
                         </div>
                       </div>
                       
                       <div className="text-center">
                         <div className="text-lg font-bold text-foreground mb-1">
-                          {item.stock} unidades
+                          {item.stock_quantity} {item.unit}
                         </div>
-                        {item.stock <= 5 && (
+                        {item.stock_quantity <= item.min_stock && (
                           <div className="flex items-center text-warning">
                             <AlertTriangle className="w-4 h-4 mr-1" />
                             <span className="text-sm font-medium">Estoque baixo</span>
@@ -82,12 +82,13 @@ const Estoque = () => {
                       </div>
                       
                       <div className="text-right">
-                        <div className="text-lg font-bold text-success mb-2">{formatPrice(item.price)}</div>
+                        <div className="text-lg font-bold text-success mb-2">{formatPrice(item.sale_price)}</div>
+                        <div className="text-sm text-muted-foreground mb-2">Custo: {formatPrice(item.cost_price)}</div>
                         <Badge 
-                          variant={item.stock > 5 ? 'default' : 'destructive'}
-                          className={item.stock > 5 ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}
+                          variant={item.stock_quantity > item.min_stock ? 'default' : 'destructive'}
+                          className={item.stock_quantity > item.min_stock ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'}
                         >
-                          {item.stock > 5 ? 'Em estoque' : 'Estoque baixo'}
+                          {item.stock_quantity > item.min_stock ? 'Em estoque' : 'Estoque baixo'}
                         </Badge>
                       </div>
                       

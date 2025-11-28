@@ -1,10 +1,10 @@
-import { DollarSign, Users, Package, Star, TrendingUp, Store } from "lucide-react";
+import { DollarSign, Users, Package, Star, TrendingUp, Store, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSalon } from "@/contexts/SalonContext";
 
 export function DashboardStats() {
-  const { sales, appointments, clients, storeSales, isLoadingSales, isLoadingAppointments, isLoadingClients, isLoadingStoreSales } = useSalon();
+  const { sales, appointments, clients, storeSales, estheticProducts, isLoadingSales, isLoadingAppointments, isLoadingClients, isLoadingStoreSales, isLoadingEstheticProducts } = useSalon();
 
   // Função para obter a data de hoje no formato YYYY-MM-DD, considerando o fuso horário local
   const getTodayLocalString = () => {
@@ -53,6 +53,9 @@ export function DashboardStats() {
   // Total de clientes
   const totalClients = clients.length;
 
+  // Produtos de estética ativos
+  const activeEstheticProducts = estheticProducts.filter(product => product.is_active).length;
+
   const stats = [
     {
       title: "Faturamento Hoje",
@@ -62,6 +65,15 @@ export function DashboardStats() {
       gradient: "bg-gradient-success",
       trend: null,
       loading: isLoadingSales,
+    },
+    {
+      title: "Produtos Estética",
+      value: activeEstheticProducts.toString(),
+      subtitle: "Produtos ativos no estoque",
+      icon: Sparkles,
+      gradient: "bg-gradient-secondary",
+      trend: null,
+      loading: isLoadingEstheticProducts,
     },
     {
       title: "Loja - Faturamento Hoje",
@@ -102,7 +114,7 @@ export function DashboardStats() {
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       {stats.map((stat, index) => (
         <Card key={index} className="relative overflow-hidden bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
