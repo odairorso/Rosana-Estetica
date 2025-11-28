@@ -7,7 +7,7 @@ import {
   CreditCard,
   Scissors,
   Package2,
-  DollarSign as DollarSignIcon,
+  DollarSign,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -42,7 +42,7 @@ const navigationItems = [
   { title: "Procedimentos", url: "/procedimentos", icon: Scissors, color: "text-teal-500" },
   { title: "Estoque", url: "/estoque", icon: Package2, color: "text-orange-500" },
   { title: "Estoque Loja", url: "/estoque-loja", icon: Package2, color: "text-red-500" },
-  { title: "Financeiro", url: "/financeiro", icon: DollarSignIcon, color: "text-green-500" },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign, color: "text-green-500" },
   { title: "Relatórios", url: "/financeiro/relatorio", icon: FileText, color: "text-purple-600" },
   { title: "Configurações", url: "/configuracoes", icon: Settings, color: "text-slate-500" },
 ];

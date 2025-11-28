@@ -16,12 +16,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Busca a sessão atual ao carregar
     supabase.auth.getSession().then(({ data, error }) => {
+      console.log('Auth session check:', { data, error });
+      if (error) {
+        console.error('Failed to get session:', error);
+      }
       setSession(data?.session ?? null);
       setLoading(false);
     });
 
     // Escuta mudanças de autenticação
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log('Auth state change:', _event, newSession);
       setSession(newSession);
     });
 

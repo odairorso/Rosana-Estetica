@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { DollarSign as DollarSignIcon, Users, Package } from "lucide-react";
+import { DollarSign, Users, Package } from "lucide-react";
 
 const goals = [
   {
@@ -8,7 +8,7 @@ const goals = [
     current: "R$ 2.635,90",
     target: "R$ 25.000,00",
     percentage: 11,
-    icon: DollarSignIcon,
+    icon: DollarSign,
     color: "text-success",
     progressColor: "bg-success",
   },

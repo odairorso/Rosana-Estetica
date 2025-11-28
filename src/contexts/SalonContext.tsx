@@ -96,6 +96,8 @@ export interface StoreProduct {
   stock: number;
   active: boolean;
   created_at: string;
+  min_stock?: number;
+  max_stock?: number;
 }
 
 export interface EstheticProduct {
@@ -176,6 +178,7 @@ interface SalonContextType {
   addEstheticProduct: (product: Omit<EstheticProduct, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateEstheticProduct: (id: string, updates: Partial<EstheticProduct>) => Promise<void>;
   deleteEstheticProduct: (id: string) => Promise<void>;
+  fetchStoreProducts: () => Promise<void>;
 }
 
 const SalonContext = createContext<SalonContextType | undefined>(undefined);
@@ -250,27 +253,37 @@ const fetchPackages = async (): Promise<Package[]> => {
 };
 
 const fetchStoreProducts = async (): Promise<StoreProduct[]> => {
-  const { data, error } = await supabase
-    .from('store_products')
-    .select('id, name, sku, size, color, category, sale_price, cost_price, stock_quantity, is_active, min_stock, max_stock, created_at')
-    .eq('is_active', true);
-  if (error) throw new Error(error.message);
-  const rows = (data || []) as any[];
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    sku: row.sku || undefined,
-    size: row.size || undefined,
-    color: row.color || undefined,
-    category: row.category || undefined,
-    price: Number(row.sale_price || 0),
-    cost_price: row.cost_price !== null && row.cost_price !== undefined ? Number(row.cost_price) : undefined,
-    stock: Number(row.stock_quantity || 0),
-    active: !!row.is_active,
-    min_stock: row.min_stock !== null && row.min_stock !== undefined ? Number(row.min_stock) : undefined,
-    max_stock: row.max_stock !== null && row.max_stock !== undefined ? Number(row.max_stock) : undefined,
-    created_at: row.created_at,
-  }));
+  try {
+    const { data, error } = await supabase
+      .from('store_products')
+      .select('id, name, sku, size, color, category, sale_price, cost_price, stock_quantity, is_active, min_stock, max_stock, created_at')
+      .eq('is_active', true);
+    
+    if (error) {
+      console.error('Error fetching store products:', error);
+      throw new Error(error.message);
+    }
+    
+    const rows = (data || []) as any[];
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      sku: row.sku || undefined,
+      size: row.size || undefined,
+      color: row.color || undefined,
+      category: row.category || undefined,
+      price: Number(row.sale_price || 0),
+      cost_price: row.cost_price !== null && row.cost_price !== undefined ? Number(row.cost_price) : undefined,
+      stock: Number(row.stock_quantity || 0),
+      active: !!row.is_active,
+      min_stock: row.min_stock !== null && row.min_stock !== undefined ? Number(row.min_stock) : undefined,
+      max_stock: row.max_stock !== null && row.max_stock !== undefined ? Number(row.max_stock) : undefined,
+      created_at: row.created_at,
+    }));
+  } catch (error) {
+    console.error('Failed to fetch store products:', error);
+    throw error;
+  }
 };
 
 const fetchEstheticProducts = async (): Promise<EstheticProduct[]> => {
@@ -400,6 +413,8 @@ export function SalonProvider({ children }: { children: ReactNode }) {
         cost_price: product.cost_price,
         stock_quantity: product.stock ?? 0,
         is_active: product.active ?? true,
+        min_stock: product.min_stock ?? 5,
+        max_stock: product.max_stock ?? 100,
       } as any;
       const { error } = await supabase.from('store_products').insert([payload]);
       if (error) throw new Error(error.message);
@@ -421,6 +436,8 @@ export function SalonProvider({ children }: { children: ReactNode }) {
       if (updates.cost_price !== undefined) allowed.cost_price = updates.cost_price;
       if (updates.stock !== undefined) allowed.stock_quantity = updates.stock;
       if (updates.active !== undefined) allowed.is_active = updates.active;
+      if (updates.min_stock !== undefined) allowed.min_stock = updates.min_stock;
+      if (updates.max_stock !== undefined) allowed.max_stock = updates.max_stock;
       const { error } = await supabase.from('store_products').update(allowed).eq('id', id);
       if (error) throw new Error(error.message);
     },
@@ -444,7 +461,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
       const total = payload.items.reduce((sum, it) => sum + it.unit_price * it.quantity, 0) - (payload.discount || 0);
       const { data: saleRow, error: saleError } = await supabase
         .from('store_sales')
-        .insert([{ client_id: payload.client_id, status: payload.status === 'paga' ? 'paga' : 'aberta', payment_method: payload.payment_method, total, discount: payload.discount || 0, note: payload.note }])
+        .insert([{ client_id: payload.client_id, status: payload.status === 'paga' ? 'paga' : 'aberta', payment_method: payload.payment_method, total_amount: total, discount_amount: payload.discount || 0, notes: payload.note }])
         .select()
         .single();
       if (saleError) throw new Error(saleError.message);
@@ -792,6 +809,12 @@ export function SalonProvider({ children }: { children: ReactNode }) {
           onSuccess: () => resolve(),
           onError: (error) => reject(error),
         });
+      });
+    },
+    fetchStoreProducts: async () => {
+      return new Promise((resolve, reject) => {
+        queryClient.invalidateQueries({ queryKey: ['store_products'] });
+        resolve();
       });
     },
   };

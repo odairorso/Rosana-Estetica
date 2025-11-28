@@ -4,7 +4,7 @@ import { SalonSidebar } from "@/components/salon-sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Plus, Calendar, User, DollarSign as DollarSignIcon, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { CreditCard, Plus, Calendar, User, DollarSign, Package, ChevronDown, ChevronUp } from "lucide-react";
 import { ShoppingCartModal } from "@/components/shopping-cart-modal";
 import { useSalon } from "@/contexts/SalonContext";
 import { format } from "date-fns";
@@ -144,7 +144,7 @@ const Caixa = () => {
           <header className="h-14 md:h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-4 md:px-6 sticky top-0 z-10">
             <SidebarTrigger className="mr-2 md:mr-4" />
             <div className="flex items-center space-x-2">
-              <DollarSignIcon className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              <DollarSign className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               <h2 className="text-base md:text-lg font-semibold text-foreground truncate">Caixa</h2>
             </div>
           </header>
@@ -173,7 +173,7 @@ const Caixa = () => {
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Vendas Hoje
                   </CardTitle>
-                  <DollarSignIcon className="w-4 h-4 text-muted-foreground" />
+                  <DollarSign className="w-4 h-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-foreground">

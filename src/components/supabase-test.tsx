@@ -7,7 +7,7 @@ export const SupabaseTest = () => {
 
   useEffect(() => {
     const testAllTables = async () => {
-      const tables = ['clients', 'sales', 'appointments'];
+      const tables = ['clients', 'sales', 'appointments', 'store_products', 'esthetic_products'];
       const testResults: Record<string, any> = {};
 
       for (const table of tables) {

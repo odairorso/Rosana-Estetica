@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { SalonProvider } from "./contexts/SalonContext";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { Navigate, useLocation } from "react-router-dom";
 import Index from "./pages/Index";
 import Clientes from "./pages/Clientes";
 import Agendamentos from "./pages/Agendamentos";
@@ -19,11 +20,24 @@ import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
-import { useAuth } from "./contexts/AuthContext";
-import { Navigate, useLocation } from "react-router-dom";
 import Relatorio from "./pages/Relatorio";
 
 const queryClient = new QueryClient();
+
+function RequireAuth({ children }: { children: JSX.Element }) {
+  const { session, loading } = useAuth();
+  const location = useLocation();
+  
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-muted-foreground">Carregando...</div>
+    </div>
+  );
+  
+  if (!session) return <Navigate to="/login" state={{ from: location }} replace />;
+  
+  return children;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -66,15 +80,3 @@ const App = () => (
 );
 
 export default App;
-
-function RequireAuth({ children }: { children: JSX.Element }) {
-  const { session, loading } = useAuth();
-  const location = useLocation();
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-muted-foreground">Carregando...</div>
-    </div>
-  );
-  if (!session) return <Navigate to="/login" state={{ from: location }} replace />;
-  return children;
-}

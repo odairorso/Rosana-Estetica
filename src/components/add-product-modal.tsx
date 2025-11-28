@@ -10,29 +10,33 @@ import { useSalon } from "@/contexts/SalonContext";
 interface AddProductModalProps {
   isOpen: boolean;
   onClose: () => void;
+  product?: any;
+  onSave?: (productData: any) => Promise<void>;
 }
 
-export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
+export function AddProductModal({ isOpen, onClose, product, onSave }: AddProductModalProps) {
   const { addStoreProduct } = useSalon();
   const [formData, setFormData] = useState({
-    name: "",
-    sku: "",
-    size: "",
-    color: "",
-    category: "",
-    stock: "",
-    price: "",
-    cost_price: "",
+    name: product?.name || "",
+    sku: product?.sku || "",
+    size: product?.size || "",
+    color: product?.color || "",
+    category: product?.category || "",
+    stock: product?.stock?.toString() || "",
+    price: product?.price?.toString() || "",
+    cost_price: product?.cost_price?.toString() || "",
   });
   const [isLoading, setIsLoading] = useState(false);
 
   const categories = [
-    "Cosméticos",
-    "Aromaterapia",
-    "Materiais",
-    "Equipamentos",
-    "Limpeza",
-    "Descartáveis",
+    "Camisetas",
+    "Calças",
+    "Vestidos",
+    "Saias",
+    "Blusas",
+    "Jaquetas",
+    "Acessórios",
+    "Calçados",
     "Outros"
   ];
 
@@ -41,7 +45,7 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
     setIsLoading(true);
 
     try {
-      await addStoreProduct({
+      const productData = {
         name: formData.name,
         sku: formData.sku || undefined,
         size: formData.size || undefined,
@@ -51,7 +55,13 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
         cost_price: formData.cost_price ? Number(formData.cost_price) : undefined,
         stock: formData.stock ? parseInt(formData.stock, 10) : 0,
         active: true,
-      });
+      };
+
+      if (onSave) {
+        await onSave(productData);
+      } else {
+        await addStoreProduct(productData);
+      }
 
       toast.success("Produto adicionado com sucesso!");
       
@@ -87,7 +97,7 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Novo Produto</DialogTitle>
+          <DialogTitle>{product ? "Editar Produto" : "Adicionar Novo Produto"}</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -97,7 +107,7 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
               id="name"
               value={formData.name}
               onChange={(e) => handleInputChange("name", e.target.value)}
-              placeholder="Ex: Creme Hidratante Facial"
+              placeholder="Ex: Camiseta Básica"
               required
             />
           </div>
@@ -119,25 +129,20 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
               <Input id="color" value={formData.color} onChange={(e) => handleInputChange("color", e.target.value)} placeholder="Ex: Azul" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="category">Categoria</Label>
-              <Input id="category" value={formData.category} onChange={(e) => handleInputChange("category", e.target.value)} placeholder="Ex: Calças" />
+              <Label htmlFor="category-select">Categoria</Label>
+              <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
+                <SelectTrigger id="category-select">
+                  <SelectValue placeholder="Selecione uma categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="category">Categoria</Label>
-            <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -165,14 +170,12 @@ export function AddProductModal({ isOpen, onClose }: AddProductModalProps) {
             />
           </div>
 
-          
-
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading} className="bg-gradient-primary">
-              {isLoading ? "Adicionando..." : "Adicionar Produto"}
+              {isLoading ? "Salvando..." : (product ? "Salvar Alterações" : "Adicionar Produto")}
             </Button>
           </div>
         </form>
