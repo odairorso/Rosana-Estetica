@@ -18,13 +18,13 @@ import { Sale } from "@/contexts/SalonContext";
 
 const Caixa = () => {
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
-  const { sales, clients, isLoadingSales, isLoadingClients, deleteSale, storeSales, isLoadingStoreSales } = useSalon();
+  const { sales, clients, isLoadingSales, isLoadingClients, deleteSale, deleteStoreSale, storeSales, isLoadingStoreSales } = useSalon();
   const { toast } = useToast();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [saleToDelete, setSaleToDelete] = useState<number | null>(null);
+  const [saleToDelete, setSaleToDelete] = useState<{ id: number, type: 'service' | 'store' } | null>(null);
   const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set());
 
   const handleEdit = (sale: Sale) => {
@@ -32,17 +32,30 @@ const Caixa = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleDelete = (id: number) => {
-    setSaleToDelete(id);
+  const handleDelete = (id: number, type: 'service' | 'store' = 'service') => {
+    setSaleToDelete({ id, type });
     setIsAlertOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (saleToDelete !== null) {
-      deleteSale(saleToDelete);
-      toast({ title: "Sucesso", description: "Venda excluída com sucesso." });
-      setIsAlertOpen(false);
-      setSaleToDelete(null);
+  const confirmDelete = async () => {
+    if (saleToDelete) {
+      try {
+        if (saleToDelete.type === 'store') {
+          await deleteStoreSale(saleToDelete.id);
+        } else {
+          deleteSale(saleToDelete.id);
+        }
+        toast({ title: "Sucesso", description: "Venda excluída com sucesso." });
+        setIsAlertOpen(false);
+        setSaleToDelete(null);
+      } catch (error) {
+        console.error("Erro ao excluir venda:", error);
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir venda. Tente novamente.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -392,9 +405,22 @@ const Caixa = () => {
                                           <Pencil className="mr-2 h-4 w-4" />
                                           Editar
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-red-600">
+                                        <DropdownMenuItem onClick={() => {
+                                          if (groupedSale.type === 'store') {
+                                            // Para vendas de loja
+                                            let saleId = item.id;
+                                            // Se o ID for composto (ex: "123-0"), extrair o ID original
+                                            if (typeof saleId === 'string' && saleId.includes('-')) {
+                                              saleId = parseInt(saleId.split('-')[0]);
+                                            }
+                                            handleDelete(saleId, 'store');
+                                          } else {
+                                            // Para vendas de serviço
+                                            handleDelete(item.id, 'service');
+                                          }
+                                        }} className="text-red-600">
                                           <Trash2 className="mr-2 h-4 w-4" />
-                                          Excluir
+                                          Excluir Venda
                                         </DropdownMenuItem>
                                       </DropdownMenuContent>
                                     </DropdownMenu>
