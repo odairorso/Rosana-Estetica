@@ -83,22 +83,26 @@ const Caixa = () => {
 
       const key = `store-${sale.id}`; // Vendas de loja já são agrupadas por venda
 
-      const itemsDescription = sale.store_sale_items?.map(item => {
-        const productName = item.store_products?.name || 'Produto desconhecido';
-        return `${item.quantity}x ${productName}`;
-      }).join(', ') || `Venda Loja #${sale.sale_number || sale.id.slice(0, 8)}`;
+      const items = sale.store_sale_items?.map((item, index) => ({
+        id: `${sale.id}-${index}`,
+        item: item.store_products?.name || 'Produto desconhecido',
+        price: String(item.unit_price * item.quantity),
+        type: 'produto',
+        status: sale.payment_status === 'paid' ? 'pago' : 'pendente',
+        quantity: item.quantity
+      })) || [{
+        id: sale.id,
+        item: `Venda Loja #${sale.sale_number || sale.id.slice(0, 8)}`,
+        price: String(sale.total_amount),
+        type: 'produto',
+        status: sale.payment_status === 'paid' ? 'pago' : 'pendente'
+      }];
 
       acc[key] = {
         id: key,
         client_id: sale.client_id,
         date: dateStr, // Manter data original completa
-        items: [{
-          id: sale.id,
-          item: itemsDescription,
-          price: String(sale.total_amount),
-          type: 'produto',
-          status: sale.payment_status === 'paid' ? 'pago' : 'pendente'
-        }],
+        items: items,
         total: sale.total_amount,
         status: sale.payment_status === 'paid' ? 'pago' : 'pendente',
         type: 'store'
@@ -358,10 +362,12 @@ const Caixa = () => {
                                 <div key={item.id} className="flex items-center justify-between p-3 bg-background/50 rounded-lg">
                                   <div className="flex-1">
                                     <div className="font-medium text-foreground text-sm">
+                                      {item.type === 'produto' && item.quantity && `${item.quantity}x `}
                                       {item.item}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
                                       {item.type === 'pacote' && item.sessions && `${item.sessions} sessões`}
+                                      {item.type === 'produto' && !item.quantity && 'Venda Loja'}
                                     </div>
                                   </div>
                                   <div className="flex items-center space-x-2">
