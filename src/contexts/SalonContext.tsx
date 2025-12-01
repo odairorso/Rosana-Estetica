@@ -148,6 +148,22 @@ export interface StoreSale {
     }[];
 }
 
+export interface FinancialTransaction {
+    id: string;
+    transaction_type: 'receita' | 'despesa';
+    scope: 'loja' | 'estetica';
+    category: string;
+    description: string;
+    amount: number;
+    payment_method: string;
+    payment_status: 'paid' | 'pending' | 'cancelled';
+    reference_id?: string;
+    reference_type?: string;
+    created_at: string;
+    transaction_date?: string;
+    due_date?: string;
+}
+
 export interface SalonContextType {
     clients: Client[];
     sales: Sale[];
@@ -190,6 +206,10 @@ export interface SalonContextType {
     updateEstheticProduct: (id: string, updates: Partial<EstheticProduct>) => Promise<void>;
     deleteEstheticProduct: (id: string) => Promise<void>;
     fetchStoreProducts: () => Promise<void>;
+    financialTransactions: FinancialTransaction[];
+    isLoadingFinancialTransactions: boolean;
+    addFinancialTransaction: (transaction: Omit<FinancialTransaction, 'id' | 'created_at'>) => Promise<void>;
+    deleteFinancialTransaction: (id: string) => Promise<void>;
 }
 
 const SalonContext = createContext<SalonContextType | undefined>(undefined);
@@ -327,6 +347,15 @@ const fetchStoreSales = async (): Promise<StoreSale[]> => {
     return data || [];
 };
 
+const fetchFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
+    const { data, error } = await supabase
+        .from('financial_transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+};
+
 export function SalonProvider({ children }: { children: ReactNode }) {
     const queryClient = useQueryClient();
 
@@ -378,6 +407,11 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     const { data: storeSales = [], isLoading: isLoadingStoreSales } = useQuery<StoreSale[]>({
         queryKey: ['store_sales'],
         queryFn: fetchStoreSales,
+    });
+
+    const { data: financialTransactions = [], isLoading: isLoadingFinancialTransactions } = useQuery<FinancialTransaction[]>({
+        queryKey: ['financial_transactions'],
+        queryFn: fetchFinancialTransactions,
     });
 
     const { data: estheticProducts = [], isLoading: isLoadingEstheticProducts } = useQuery<EstheticProduct[]>({
@@ -623,6 +657,26 @@ export function SalonProvider({ children }: { children: ReactNode }) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['store_sales'] });
+        },
+    });
+
+    const addFinancialTransactionMutation = useMutation({
+        mutationFn: async (transaction: Omit<FinancialTransaction, 'id' | 'created_at'>) => {
+            const { error } = await supabase.from('financial_transactions').insert([transaction]);
+            if (error) throw new Error(error.message);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
+        },
+    });
+
+    const deleteFinancialTransactionMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase.from('financial_transactions').delete().eq('id', id);
+            if (error) throw new Error(error.message);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['financial_transactions'] });
         },
     });
 
@@ -920,6 +974,24 @@ export function SalonProvider({ children }: { children: ReactNode }) {
             return new Promise((resolve, reject) => {
                 queryClient.invalidateQueries({ queryKey: ['store_products'] });
                 resolve();
+            });
+        },
+        financialTransactions,
+        isLoadingFinancialTransactions,
+        addFinancialTransaction: async (transaction) => {
+            return new Promise((resolve, reject) => {
+                addFinancialTransactionMutation.mutate(transaction, {
+                    onSuccess: () => resolve(),
+                    onError: (error) => reject(error),
+                });
+            });
+        },
+        deleteFinancialTransaction: async (id) => {
+            return new Promise((resolve, reject) => {
+                deleteFinancialTransactionMutation.mutate(id, {
+                    onSuccess: () => resolve(),
+                    onError: (error) => reject(error),
+                });
             });
         },
     };
