@@ -121,44 +121,45 @@ export function DashboardStats() {
       trend: null,
       loading: isLoadingSales,
     },
-    title: "Agendamentos Hoje",
-    value: todayAppointments.length.toString(),
-    subtitle: "Atendimentos marcados",
-    icon: Star,
-    gradient: "bg-gradient-primary",
-    trend: null,
-    loading: isLoadingAppointments,
+    {
+      title: "Agendamentos Hoje",
+      value: todayAppointments.length.toString(),
+      subtitle: "Atendimentos marcados",
+      icon: Star,
+      gradient: "bg-gradient-primary",
+      trend: null,
+      loading: isLoadingAppointments,
     },
   ];
 
-return (
-  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-    {stats.map((stat, index) => (
-      <Card key={index} className="relative overflow-hidden bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            {stat.title}
-          </CardTitle>
-          <div className={`w-10 h-10 rounded-lg ${stat.gradient} flex items-center justify-center shadow-sm`}>
-            <stat.icon className="w-5 h-5 text-white" />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-foreground mb-1">
-            {stat.loading ? "..." : stat.value}
-          </div>
-          <p className="text-xs text-muted-foreground mb-2">
-            {stat.loading ? "Carregando..." : stat.subtitle}
-          </p>
-          {stat.trend && !stat.loading && (
-            <Badge variant="secondary" className="text-xs bg-success-muted text-success">
-              <TrendingUp className="w-3 h-3 mr-1" />
-              {stat.trend}
-            </Badge>
-          )}
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-);
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      {stats.map((stat, index) => (
+        <Card key={index} className="relative overflow-hidden bg-gradient-card border-0 shadow-md hover:shadow-lg transition-all duration-200">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {stat.title}
+            </CardTitle>
+            <div className={`w-10 h-10 rounded-lg ${stat.gradient} flex items-center justify-center shadow-sm`}>
+              <stat.icon className="w-5 h-5 text-white" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground mb-1">
+              {stat.loading ? "..." : stat.value}
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">
+              {stat.loading ? "Carregando..." : stat.subtitle}
+            </p>
+            {stat.trend && !stat.loading && (
+              <Badge variant="secondary" className="text-xs bg-success-muted text-success">
+                <TrendingUp className="w-3 h-3 mr-1" />
+                {stat.trend}
+              </Badge>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 }
