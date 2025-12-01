@@ -240,13 +240,21 @@ const fetchAppointments = async (): Promise<Appointment[]> => {
 };
 
 const fetchProcedures = async (): Promise<Procedure[]> => {
-    const { data, error } = await supabase.from('procedures').select('*').eq('is_active', true);
+    const { data, error } = await supabase
+        .from('procedures')
+        .select('*')
+        .eq('active', true)
+        .order('name', { ascending: true });
     if (error) throw new Error(error.message);
     return data || [];
 };
 
 const fetchPackages = async (): Promise<Package[]> => {
-    const { data, error } = await supabase.from('packages').select('*').eq('is_active', true);
+    const { data, error } = await supabase
+        .from('packages')
+        .select('*')
+        .eq('active', true)
+        .order('name', { ascending: true });
     if (error) throw new Error(error.message);
     return data || [];
 };
@@ -479,6 +487,109 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     const deleteEstheticProductMutation = useMutation({
         mutationFn: async (id: string) => {
             const { error } = await supabase.from('esthetic_products').delete().eq('id', id);
+            if (error) throw new Error(error.message);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['esthetic_products'] });
+        },
+    });
+
+    // Mutation para adicionar venda da loja
+    const addStoreSaleMutation = useMutation({
+        mutationFn: async (payload: {
+            client_id: number;
+            items: StoreSaleItem[];
+            payment_method: string;
+            status: string;
+            note?: string;
+            discount_amount?: number;
+        }) => {
+            // 1. Inserir a venda na tabela store_sales
+            const { data: saleData, error: saleError } = await supabase
+                .from('store_sales')
+                .insert([{
+                    client_id: payload.client_id,
+                    payment_method: payload.payment_method,
+                    payment_status: payload.status === 'paga' ? 'paid' : 'pending',
+                    notes: payload.note || '',
+                    discount_amount: payload.discount_amount || 0,
+                    total_amount: payload.items.reduce((total, item) => total + (item.quantity * item.unit_price), 0) - (payload.discount_amount || 0)
+                }])
+                .select()
+                .single();
+
+            if (saleError) throw new Error(saleError.message);
+
+            // 2. Inserir os itens da venda na tabela store_sale_items
+            const saleItems = payload.items.map(item => ({
+                sale_id: saleData.id,
+                product_id: item.product_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                total_price: item.quantity * item.unit_price
+            }));
+
+            const { error: itemsError } = await supabase
+                .from('store_sale_items')
+                .insert(saleItems);
+
+            if (itemsError) throw new Error(itemsError.message);
+
+            // 3. Atualizar estoque e registrar movimentação
+            for (const item of payload.items) {
+                const { data: product, error: prodError } = await supabase
+                    .from('store_products')
+                    .select('stock_quantity')
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (!prodError && product) {
+                    const currentStock = product.stock_quantity || 0;
+                    const newStock = currentStock - item.quantity;
+
+                    await supabase
+                        .from('store_products')
+                        .update({ stock_quantity: newStock })
+                        .eq('id', item.product_id);
+
+                    await supabase.from('store_inventory_movements').insert([{
+                        product_id: item.product_id,
+                        movement_type: 'saida',
+                        quantity: item.quantity,
+                        previous_stock: currentStock,
+                        new_stock: newStock,
+                        reason: 'Venda Loja',
+                        reference_id: saleData.id
+                    }]);
+                }
+            }
+
+            // 4. Registrar transação financeira
+            const { error: finError } = await supabase.from('financial_transactions').insert([{
+                transaction_type: 'receita',
+                scope: 'loja',
+                category: 'Venda de Produtos',
+                description: `Venda Loja #${saleData.sale_number || saleData.id.slice(0, 8)}`,
+                amount: saleData.total_amount,
+                payment_method: payload.payment_method,
+                payment_status: payload.status === 'paga' ? 'paid' : 'pending',
+                reference_id: saleData.id,
+                reference_type: 'store_sale'
+            }]);
+
+            if (finError) console.error('Erro ao criar transação financeira:', finError);
+
+            return saleData;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['store_sales'] });
+            queryClient.invalidateQueries({ queryKey: ['store_products'] });
+        },
+    });
+
+    const addEstheticProductMutation = useMutation({
+        mutationFn: async (product: Omit<EstheticProduct, 'id' | 'created_at' | 'updated_at'>) => {
+            const { error } = await supabase.from('esthetic_products').insert([product]);
             if (error) throw new Error(error.message);
         },
         onSuccess: () => {
