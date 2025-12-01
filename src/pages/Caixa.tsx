@@ -24,7 +24,7 @@ const Caixa = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [saleToDelete, setSaleToDelete] = useState<{ id: number, type: 'service' | 'store' } | null>(null);
+  const [saleToDelete, setSaleToDelete] = useState<{ id: string | number, type: 'service' | 'store' } | null>(null);
   const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set());
 
   const handleEdit = (sale: Sale) => {
@@ -32,7 +32,7 @@ const Caixa = () => {
     setIsEditModalOpen(true);
   };
 
-  const handleDelete = (id: number, type: 'service' | 'store' = 'service') => {
+  const handleDelete = (id: string | number, type: 'service' | 'store' = 'service') => {
     setSaleToDelete({ id, type });
     setIsAlertOpen(true);
   };
@@ -41,9 +41,9 @@ const Caixa = () => {
     if (saleToDelete) {
       try {
         if (saleToDelete.type === 'store') {
-          await deleteStoreSale(saleToDelete.id);
+          await deleteStoreSale(String(saleToDelete.id));
         } else {
-          deleteSale(saleToDelete.id);
+          deleteSale(Number(saleToDelete.id));
         }
         toast({ title: "Sucesso", description: "Venda excluída com sucesso." });
         setIsAlertOpen(false);
@@ -94,7 +94,7 @@ const Caixa = () => {
       const day = String(d.getDate()).padStart(2, '0');
       const dateKey = `${y}-${m}-${day}`;
 
-      const key = `store-${sale.id}`; // Vendas de loja já são agrupadas por venda
+      const key = `store-${sale.id}`;
 
       let items = sale.store_sale_items?.map((item, index) => ({
         id: `${sale.id}-${index}`,
@@ -124,7 +124,8 @@ const Caixa = () => {
         items: items,
         total: sale.total_amount,
         status: sale.payment_status === 'paid' ? 'pago' : 'pendente',
-        type: 'store'
+        type: 'store',
+        primary_id: sale.id
       };
       return acc;
     }, {} as Record<string, any>);
@@ -407,15 +408,8 @@ const Caixa = () => {
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => {
                                           if (groupedSale.type === 'store') {
-                                            // Para vendas de loja
-                                            let saleId = item.id;
-                                            // Se o ID for composto (ex: "123-0"), extrair o ID original
-                                            if (typeof saleId === 'string' && saleId.includes('-')) {
-                                              saleId = parseInt(saleId.split('-')[0]);
-                                            }
-                                            handleDelete(saleId, 'store');
+                                            handleDelete(groupedSale.primary_id, 'store');
                                           } else {
-                                            // Para vendas de serviço
                                             handleDelete(item.id, 'service');
                                           }
                                         }} className="text-red-600">

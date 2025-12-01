@@ -18,6 +18,7 @@ interface CartItem {
   price: number;
   quantity: number;
   sessions?: number;
+  productId?: string;
 }
 
 // Dados simulados para demonstração (mantidos por enquanto)
@@ -88,7 +89,8 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
       type: activeTab,
       price: parseFloat(price),
       quantity: quantity,
-      ...(activeTab === "pacote" && 'sessions' in selectedItem && { sessions: Number((selectedItem as any).sessions) })
+      ...(activeTab === "pacote" && 'sessions' in selectedItem && { sessions: selectedItem.sessions }),
+      ...(activeTab === "produto" && scope === "loja" && { productId: selectedItem.id })
     };
 
     setCart(prev => [...prev, item]);
@@ -150,8 +152,8 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
       toast({ title: "Venda Finalizada!", description: "Venda da Estética registrada." });
       resetForm();
     } else {
-      const items: StoreSaleItem[] = cart.map(ci => ({
-        product_id: ci.id,
+      const items: StoreSaleItem[] = cart.filter(ci => ci.type === "produto").map(ci => ({
+        product_id: ci.productId || '',
         quantity: ci.quantity,
         unit_price: ci.price,
       }));

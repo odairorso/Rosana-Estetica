@@ -181,7 +181,7 @@ export interface SalonContextType {
     updateStoreProduct: (id: string, updates: Partial<StoreProduct>) => Promise<void>;
     deleteStoreProduct: (id: string) => Promise<void>;
     addStoreSale: (payload: { client_id: number; items: StoreSaleItem[]; payment_method: string; status: string; note?: string; discount_amount?: number }) => Promise<void>;
-    deleteStoreSale: (id: number) => Promise<void>;
+    deleteStoreSale: (id: string) => Promise<void>;
     estheticProducts: EstheticProduct[];
     isLoadingEstheticProducts: boolean;
     fetchEstheticProducts: () => Promise<void>;
@@ -608,7 +608,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
     });
 
     const deleteStoreSaleMutation = useMutation({
-        mutationFn: async (id: number) => {
+        mutationFn: async (id: string) => {
             // 1. Os itens serão deletados em cascata (ON DELETE CASCADE)
             // 2. Precisamos deletar a transação financeira manualmente se não houver cascade lá
             await supabase.from('financial_transactions')
@@ -881,7 +881,7 @@ export function SalonProvider({ children }: { children: ReactNode }) {
                 });
             });
         },
-        deleteStoreSale: (id: number) => deleteStoreSaleMutation.mutateAsync(id),
+        deleteStoreSale: (id: string) => deleteStoreSaleMutation.mutateAsync(id),
         estheticProducts,
         isLoadingEstheticProducts,
         fetchEstheticProducts: async () => {
