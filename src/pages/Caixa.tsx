@@ -18,7 +18,7 @@ import { Sale } from "@/contexts/SalonContext";
 
 const Caixa = () => {
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
-  const { sales, clients, isLoadingSales, isLoadingClients, deleteSale } = useSalon();
+  const { sales, clients, isLoadingSales, isLoadingClients, deleteSale, storeSales, isLoadingStoreSales } = useSalon();
   const { toast } = useToast();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -48,7 +48,8 @@ const Caixa = () => {
 
   // Função para agrupar vendas por cliente e data
   const groupSalesByClientAndDate = () => {
-    const grouped = sales.reduce((acc, sale) => {
+    // 1. Agrupar vendas de serviços/pacotes
+    const serviceSales = sales.reduce((acc, sale) => {
       const key = `${sale.client_id}-${sale.date}`;
       if (!acc[key]) {
         acc[key] = {
@@ -57,22 +58,50 @@ const Caixa = () => {
           date: sale.date,
           items: [],
           total: 0,
-          status: sale.status
+          status: sale.status,
+          type: 'service'
         };
       }
       acc[key].items.push(sale);
       acc[key].total += parseFloat(sale.price);
       return acc;
-    }, {} as Record<string, {
-      id: string;
-      client_id: string;
-      date: string;
-      items: Sale[];
-      total: number;
-      status: string;
-    }>);
+    }, {} as Record<string, any>);
 
-    return Object.values(grouped).sort((a, b) => {
+    // 2. Agrupar vendas da loja
+    const storeSalesGrouped = (storeSales || []).reduce((acc, sale) => {
+      // Usar sale_date ou created_at
+      const dateStr = sale.sale_date || sale.created_at;
+      // Normalizar data para YYYY-MM-DD para agrupamento
+      const d = new Date(dateStr);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateKey = `${y}-${m}-${day}`;
+
+      const key = `store-${sale.id}`; // Vendas de loja já são agrupadas por venda
+
+      acc[key] = {
+        id: key,
+        client_id: sale.client_id,
+        date: dateStr, // Manter data original completa
+        items: [{
+          id: sale.id,
+          item: `Venda Loja #${sale.sale_number || sale.id.slice(0, 8)}`,
+          price: String(sale.total_amount),
+          type: 'produto',
+          status: sale.payment_status === 'paid' ? 'pago' : 'pendente'
+        }],
+        total: sale.total_amount,
+        status: sale.payment_status === 'paid' ? 'pago' : 'pendente',
+        type: 'store'
+      };
+      return acc;
+    }, {} as Record<string, any>);
+
+    // Combinar e ordenar
+    const allSales = [...Object.values(serviceSales), ...Object.values(storeSalesGrouped)];
+
+    return allSales.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
       return dateB.getTime() - dateA.getTime();
@@ -100,19 +129,19 @@ const Caixa = () => {
       if (!dateString) {
         return "Data a ser definida";
       }
-      
+
       // Se a data está no formato dd/mm/yyyy, retorna como está
       if (dateString.includes('/')) {
         return dateString;
       }
-      
+
       // Processar datas ISO (formato: 2024-01-15T10:30:00.000Z ou 2024-01-15)
       const date = new Date(dateString);
-      
+
       if (isNaN(date.getTime())) {
         return "Data a ser definida";
       }
-      
+
       // Se a data ISO inclui hora (tem 'T'), mostrar data e hora
       if (dateString.includes('T')) {
         return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
@@ -127,19 +156,35 @@ const Caixa = () => {
 
 
 
-  const totalSales = sales.reduce((sum, sale) => sum + parseFloat(sale.price), 0);
-  const todaySales = sales.filter(sale => {
+  const totalServiceSales = sales.reduce((sum, sale) => sum + parseFloat(sale.price), 0);
+  const totalStoreSales = (storeSales || []).reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0);
+  const totalSales = totalServiceSales + totalStoreSales;
+
+  const todayServiceSales = sales.filter(sale => {
     const saleDate = new Date(sale.date);
     const today = new Date();
     return saleDate.toDateString() === today.toDateString();
   });
-  const todayTotal = todaySales.reduce((sum, sale) => sum + parseFloat(sale.price), 0);
+
+  const todayStoreSales = (storeSales || []).filter(sale => {
+    if (!sale.sale_date && !sale.created_at) return false;
+    const dateStr = sale.sale_date || sale.created_at;
+    const saleDate = new Date(dateStr);
+    const today = new Date();
+    return saleDate.toDateString() === today.toDateString();
+  });
+
+  const todaySalesCount = todayServiceSales.length + todayStoreSales.length;
+  const allSalesCount = sales.length + (storeSales || []).length;
+
+  const todayTotal = todayServiceSales.reduce((sum, sale) => sum + parseFloat(sale.price), 0) +
+    todayStoreSales.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0);
 
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <SalonSidebar />
-        
+
         <main className="flex-1 flex flex-col min-w-0">
           <header className="h-14 md:h-16 border-b border-border/50 bg-card/50 backdrop-blur-sm flex items-center px-4 md:px-6 sticky top-0 z-10">
             <SidebarTrigger className="mr-2 md:mr-4" />
@@ -157,7 +202,7 @@ const Caixa = () => {
                   {isLoadingSales ? "Carregando..." : `${sales.length} vendas registradas`}
                 </p>
               </div>
-              <Button 
+              <Button
                 onClick={() => setIsCartModalOpen(true)}
                 className="bg-gradient-primary text-primary-foreground"
               >
@@ -177,7 +222,7 @@ const Caixa = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-foreground">
-                    {isLoadingSales ? "..." : todaySales.length}
+                    {isLoadingSales || isLoadingStoreSales ? "..." : todaySalesCount}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     R$ {isLoadingSales ? "..." : todayTotal.toFixed(2)}
@@ -194,7 +239,7 @@ const Caixa = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-foreground">
-                    {isLoadingSales ? "..." : sales.length}
+                    {isLoadingSales || isLoadingStoreSales ? "..." : allSalesCount}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     R$ {isLoadingSales ? "..." : totalSales.toFixed(2)}
@@ -211,7 +256,7 @@ const Caixa = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold text-foreground">
-                    {isLoadingSales ? "..." : sales.length > 0 ? `R$ ${(totalSales / sales.length).toFixed(2)}` : "R$ 0,00"}
+                    {isLoadingSales || isLoadingStoreSales ? "..." : allSalesCount > 0 ? `R$ ${(totalSales / allSalesCount).toFixed(2)}` : "R$ 0,00"}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Por venda
@@ -235,7 +280,7 @@ const Caixa = () => {
                   <CreditCard className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">Nenhuma venda registrada</h3>
                   <p className="text-muted-foreground">Comece registrando uma nova venda.</p>
-                  <Button 
+                  <Button
                     onClick={() => setIsCartModalOpen(true)}
                     className="mt-4 bg-gradient-primary text-primary-foreground"
                   >
@@ -254,7 +299,7 @@ const Caixa = () => {
                     {groupSalesByClientAndDate().map((groupedSale) => (
                       <div key={groupedSale.id} className="bg-muted/50 rounded-lg overflow-hidden">
                         {/* Cabeçalho da venda agrupada - clicável */}
-                        <div 
+                        <div
                           className="flex items-center justify-between p-4 hover:bg-muted/70 transition-colors cursor-pointer"
                           onClick={() => toggleSaleExpansion(groupedSale.id)}
                         >
@@ -264,7 +309,7 @@ const Caixa = () => {
                             </div>
                             <div>
                               <div className="font-medium text-foreground">
-                                {getClientName(groupedSale.client_id)}
+                                {groupedSale.client_id ? getClientName(Number(groupedSale.client_id)) : 'Cliente não identificado'}
                               </div>
                               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                                 <Calendar className="w-4 h-4" />
@@ -347,10 +392,10 @@ const Caixa = () => {
             )}
           </div>
         </main>
-        
-        <ShoppingCartModal 
-          isOpen={isCartModalOpen} 
-          onClose={() => setIsCartModalOpen(false)} 
+
+        <ShoppingCartModal
+          isOpen={isCartModalOpen}
+          onClose={() => setIsCartModalOpen(false)}
         />
 
         <EditSaleModal

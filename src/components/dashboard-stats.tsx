@@ -16,7 +16,7 @@ export function DashboardStats() {
   };
 
   const todayString = getTodayLocalString();
-  
+
   // Faturamento hoje
   const todayRevenue = sales
     .filter(sale => sale.date === todayString && sale.status === 'pago')
@@ -24,14 +24,19 @@ export function DashboardStats() {
 
   const storeTodayRevenue = (storeSales || [])
     .filter(sale => {
-      const d = new Date(sale.date);
+      if (!sale.sale_date && !sale.created_at) return false;
+      const dateStr = sale.sale_date || sale.created_at;
+      // Ajuste para garantir comparação correta de datas locais
+      const d = new Date(dateStr);
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
       const iso = `${y}-${m}-${day}`;
-      return iso === todayString && sale.status === 'paga';
+
+      // Verificar status de pagamento (paid)
+      return iso === todayString && sale.payment_status === 'paid';
     })
-    .reduce((sum, s) => sum + Number(s.total || 0), 0);
+    .reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
 
   // Agendamentos hoje
   const todayAppointments = appointments.filter(appointment => appointment.date === todayString);
@@ -45,9 +50,9 @@ export function DashboardStats() {
       return false;
     }
     const saleDate = new Date(sale.date);
-    return sale.type === 'pacote' && 
-           saleDate.getMonth() === currentMonth && 
-           saleDate.getFullYear() === currentYear;
+    return sale.type === 'pacote' &&
+      saleDate.getMonth() === currentMonth &&
+      saleDate.getFullYear() === currentYear;
   }).length;
 
   // Total de clientes
@@ -78,7 +83,15 @@ export function DashboardStats() {
     {
       title: "Loja - Faturamento Hoje",
       value: `R$ ${storeTodayRevenue.toFixed(2).replace('.', ',')}`,
-      subtitle: `${(storeSales || []).filter(s => { const d = new Date(s.date); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}` === todayString; }).length} vendas hoje`,
+      subtitle: `${(storeSales || []).filter(s => {
+        if (!s.sale_date && !s.created_at) return false;
+        const dateStr = s.sale_date || s.created_at;
+        const d = new Date(dateStr);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}` === todayString;
+      }).length} vendas hoje`,
       icon: Store,
       gradient: "bg-gradient-secondary",
       trend: null,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,7 +88,7 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
       type: activeTab,
       price: parseFloat(price),
       quantity: quantity,
-      ...(activeTab === "pacote" && 'sessions' in selectedItem && { sessions: selectedItem.sessions })
+      ...(activeTab === "pacote" && 'sessions' in selectedItem && { sessions: Number((selectedItem as any).sessions) })
     };
 
     setCart(prev => [...prev, item]);
@@ -173,6 +173,9 @@ export const ShoppingCartModal = ({ isOpen, onClose }: ShoppingCartModalProps) =
             <ShoppingCart className="w-5 h-5" />
             Nova Venda - Carrinho
           </DialogTitle>
+          <DialogDescription>
+            Adicione itens ao carrinho para realizar uma nova venda.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 sm:space-y-6">
