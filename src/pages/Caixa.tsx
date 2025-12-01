@@ -80,13 +80,18 @@ const Caixa = () => {
 
       const key = `store-${sale.id}`; // Vendas de loja já são agrupadas por venda
 
+      const itemsDescription = sale.store_sale_items?.map(item => {
+        const productName = item.store_products?.name || 'Produto desconhecido';
+        return `${item.quantity}x ${productName}`;
+      }).join(', ') || `Venda Loja #${sale.sale_number || sale.id.slice(0, 8)}`;
+
       acc[key] = {
         id: key,
         client_id: sale.client_id,
         date: dateStr, // Manter data original completa
         items: [{
           id: sale.id,
-          item: `Venda Loja #${sale.sale_number || sale.id.slice(0, 8)}`,
+          item: itemsDescription,
           price: String(sale.total_amount),
           type: 'produto',
           status: sale.payment_status === 'paid' ? 'pago' : 'pendente'

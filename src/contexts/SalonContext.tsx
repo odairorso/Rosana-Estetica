@@ -138,6 +138,13 @@ export interface StoreSale {
     sale_date: string;
     notes?: string;
     created_at: string;
+    store_sale_items?: {
+        quantity: number;
+        unit_price: number;
+        store_products?: {
+            name: string;
+        }
+    }[];
 }
 
 export interface SalonContextType {
@@ -300,7 +307,19 @@ const fetchEstheticProducts = async (): Promise<EstheticProduct[]> => {
 };
 
 const fetchStoreSales = async (): Promise<StoreSale[]> => {
-    const { data, error } = await supabase.from('store_sales').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+        .from('store_sales')
+        .select(`
+            *,
+            store_sale_items (
+                quantity,
+                unit_price,
+                store_products (
+                    name
+                )
+            )
+        `)
+        .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
     return data || [];
 };
