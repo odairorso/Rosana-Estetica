@@ -72,7 +72,10 @@ const Caixa = () => {
       // Usar sale_date ou created_at
       const dateStr = sale.sale_date || sale.created_at;
       // Normalizar data para YYYY-MM-DD para agrupamento
-      const d = new Date(dateStr);
+      let d = new Date(dateStr);
+      if (isNaN(d.getTime())) {
+        d = new Date(); // Fallback para hoje se data inválida
+      }
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');

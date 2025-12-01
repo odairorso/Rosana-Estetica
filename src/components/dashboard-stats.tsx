@@ -32,6 +32,8 @@ export function DashboardStats() {
       // Fallback para created_at ou outros formatos
       const dateStr = sale.sale_date || sale.created_at;
       const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return false;
+
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
@@ -93,6 +95,8 @@ export function DashboardStats() {
         if (!s.sale_date && !s.created_at) return false;
         const dateStr = s.sale_date || s.created_at;
         const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
