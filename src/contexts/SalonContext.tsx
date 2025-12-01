@@ -139,6 +139,7 @@ export interface StoreSale {
     notes?: string;
     created_at: string;
     store_sale_items?: {
+        product_id?: string;
         quantity: number;
         unit_price: number;
         store_products?: {
@@ -313,6 +314,7 @@ const fetchStoreSales = async (): Promise<StoreSale[]> => {
         .select(`
             *,
             store_sale_items (
+                product_id,
                 quantity,
                 unit_price,
                 store_products (
